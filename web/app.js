@@ -9,6 +9,21 @@ const state = {
   route: null,
   watchId: null,
   hapticLogStarted: false,
+  recording: null,
+  recordingWatchId: null,
+  recordingLastPosition: null,
+  recordingMarkers: [],
+  recordingLine: null,
+  recordingPath: [],
+};
+
+const RECORD_TAG_LABELS = {
+  start: "시작",
+  left_turn: "좌회전",
+  right_turn: "우회전",
+  crosswalk: "횡단보도",
+  stairs: "계단",
+  destination: "도착",
 };
 
 const elements = {
@@ -27,6 +42,16 @@ const elements = {
   nextGuidance: document.querySelector("#next-guidance"),
   hapticLog: document.querySelector("#haptic-log"),
   sensorStatus: document.querySelector("#sensor-status"),
+  recordName: document.querySelector("#record-name"),
+  recordStart: document.querySelector("#record-start"),
+  recordSetup: document.querySelector("#record-setup"),
+  recordActive: document.querySelector("#record-active"),
+  recordGpsStatus: document.querySelector("#record-gps-status"),
+  recordPoints: document.querySelector("#record-points"),
+  recordCount: document.querySelector("#record-count"),
+  recordSave: document.querySelector("#record-save"),
+  recordMessage: document.querySelector("#record-message"),
+  recordBadge: document.querySelector("#record-recording-badge"),
 };
 
 function setStatus(message, isError = false) {
@@ -98,6 +123,12 @@ function bindEvents() {
   elements.startNavigation.addEventListener("click", startNavigation);
   elements.stopNavigation.addEventListener("click", stopNavigation);
   document.querySelector("#send-tof").addEventListener("click", sendTofReadings);
+
+  elements.recordStart.addEventListener("click", startRecording);
+  elements.recordSave.addEventListener("click", finishRecording);
+  document.querySelectorAll("[data-record-tag]").forEach((button) => {
+    button.addEventListener("click", () => tagRecordingWaypoint(button.dataset.recordTag));
+  });
 }
 
 async function searchPlaces(kind) {
@@ -366,5 +397,194 @@ function renderSensorStatus(sensors) {
   });
 }
 
-window.addEventListener("beforeunload", stopNavigation);
+// ---------------------------------------------------------------------------
+// 경로 기록 모드
+//
+// A companion walks the real route once and taps a button at each turn,
+// crosswalk, stairs, or the destination. Every tap sends the phone's current
+// GPS fix plus the point type to the server; "경로 저장" writes the tagged
+// points to route_N.json. This mode uses the browser's own GPS as a stand-in
+// for the belt's GPS module until that integration exists.
+// ---------------------------------------------------------------------------
+
+function startRecording() {
+  const name = elements.recordName.value.trim();
+  if (!name) {
+    elements.recordMessage.textContent = "경로 이름을 입력하세요.";
+    return;
+  }
+  if (!navigator.geolocation) {
+    elements.recordMessage.textContent = "이 브라우저에서는 위치 기능을 사용할 수 없습니다.";
+    return;
+  }
+
+  elements.recordStart.disabled = true;
+  elements.recordMessage.textContent = "현재 위치를 확인하는 중…";
+
+  navigator.geolocation.getCurrentPosition(
+    async (position) => {
+      const coordinate = {
+        longitude: position.coords.longitude,
+        latitude: position.coords.latitude,
+      };
+      try {
+        const session = await api("/api/recordings", {
+          method: "POST",
+          body: JSON.stringify({ name, coordinate }),
+        });
+        beginRecordingSession(session, coordinate);
+      } catch (error) {
+        elements.recordMessage.textContent = error.message;
+        elements.recordStart.disabled = false;
+      }
+    },
+    (error) => {
+      elements.recordMessage.textContent = `위치 오류: ${error.message}`;
+      elements.recordStart.disabled = false;
+    },
+    { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 },
+  );
+}
+
+function beginRecordingSession(session, startCoordinate) {
+  state.recording = session;
+  state.recordingLastPosition = startCoordinate;
+  state.recordingPath = [startCoordinate];
+  state.recordingMarkers.forEach((marker) => marker.setMap(null));
+  state.recordingMarkers = [];
+  if (state.recordingLine) state.recordingLine.setMap(null);
+  state.recordingLine = null;
+
+  elements.recordSetup.hidden = true;
+  elements.recordActive.hidden = false;
+  elements.recordBadge.hidden = false;
+  elements.recordSave.disabled = true;
+  elements.recordMessage.textContent = "";
+  renderRecordingWaypoints(session.waypoints);
+  placeRecordingMarker(session.waypoints[0]);
+
+  state.recordingWatchId = navigator.geolocation.watchPosition(
+    (position) => {
+      state.recordingLastPosition = {
+        longitude: position.coords.longitude,
+        latitude: position.coords.latitude,
+      };
+      state.recordingPath.push(state.recordingLastPosition);
+      updateRecordingLine();
+      elements.recordGpsStatus.textContent = `GPS 정확도 ±${Math.round(
+        position.coords.accuracy,
+      )}m`;
+    },
+    (error) => {
+      elements.recordGpsStatus.textContent = `위치 오류: ${error.message}`;
+    },
+    { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 },
+  );
+}
+
+async function tagRecordingWaypoint(type) {
+  if (!state.recording || !state.recordingLastPosition) {
+    elements.recordMessage.textContent = "먼저 기록을 시작하고 GPS 신호를 기다려 주세요.";
+    return;
+  }
+  try {
+    const waypoint = await api(`/api/recordings/${state.recording.recordingId}/waypoints`, {
+      method: "POST",
+      body: JSON.stringify({ type, coordinate: state.recordingLastPosition }),
+    });
+    state.recording.waypoints.push(waypoint);
+    renderRecordingWaypoints(state.recording.waypoints);
+    placeRecordingMarker(waypoint);
+    elements.recordMessage.textContent = "";
+    if (type === "destination") {
+      elements.recordSave.disabled = false;
+    }
+  } catch (error) {
+    elements.recordMessage.textContent = error.message;
+  }
+}
+
+function placeRecordingMarker(waypoint) {
+  if (!state.map) return;
+  const position = new window.kakao.maps.LatLng(waypoint.lat, waypoint.lon);
+  const marker = new window.kakao.maps.Marker({ map: state.map, position });
+  const label = new window.kakao.maps.CustomOverlay({
+    map: state.map,
+    position,
+    yAnchor: 2.1,
+    content: `<div class="record-marker-label">${RECORD_TAG_LABELS[waypoint.type] || waypoint.type}</div>`,
+  });
+  state.recordingMarkers.push(marker, label);
+  state.map.panTo(position);
+}
+
+function updateRecordingLine() {
+  if (!state.map || state.recordingPath.length < 2) return;
+  const path = state.recordingPath.map(
+    (point) => new window.kakao.maps.LatLng(point.latitude, point.longitude),
+  );
+  if (state.recordingLine) {
+    state.recordingLine.setPath(path);
+    return;
+  }
+  state.recordingLine = new window.kakao.maps.Polyline({
+    map: state.map,
+    path,
+    strokeWeight: 5,
+    strokeColor: "#ffd449",
+    strokeOpacity: 0.85,
+    strokeStyle: "shortdash",
+  });
+}
+
+function renderRecordingWaypoints(waypoints) {
+  elements.recordCount.textContent = String(
+    waypoints.filter((waypoint) => waypoint.type !== "start").length,
+  );
+  elements.recordPoints.replaceChildren();
+  if (waypoints.length === 0) {
+    const empty = document.createElement("li");
+    empty.className = "record-empty";
+    empty.textContent = "아직 태깅한 지점이 없습니다.";
+    elements.recordPoints.appendChild(empty);
+    return;
+  }
+  waypoints.forEach((waypoint) => {
+    const item = document.createElement("li");
+    const label = RECORD_TAG_LABELS[waypoint.type] || waypoint.type;
+    const time = waypoint.recordedAt ? new Date(waypoint.recordedAt) : null;
+    const timeText = time ? time.toLocaleTimeString("ko-KR", { hour12: false }) : "";
+    item.innerHTML = `<strong>${label}</strong><span>${waypoint.lat.toFixed(5)}, ${waypoint.lon.toFixed(5)} · ${timeText}</span>`;
+    elements.recordPoints.appendChild(item);
+  });
+}
+
+async function finishRecording() {
+  if (!state.recording) return;
+  elements.recordSave.disabled = true;
+  try {
+    const result = await api(`/api/recordings/${state.recording.recordingId}/finish`, {
+      method: "POST",
+    });
+    elements.recordMessage.textContent = `저장 완료: ${result.fileName} (지점 ${result.waypoints.length}개)`;
+    elements.recordBadge.hidden = true;
+    if (state.recordingWatchId !== null) {
+      navigator.geolocation.clearWatch(state.recordingWatchId);
+      state.recordingWatchId = null;
+    }
+    state.recording = null;
+    elements.recordActive.hidden = true;
+    elements.recordSetup.hidden = false;
+    elements.recordStart.disabled = false;
+    elements.recordName.value = "";
+  } catch (error) {
+    elements.recordMessage.textContent = error.message;
+    elements.recordSave.disabled = false;
+  }
+}
+
+window.addEventListener("beforeunload", () => {
+  stopNavigation();
+  if (state.recordingWatchId !== null) navigator.geolocation.clearWatch(state.recordingWatchId);
+});
 initialize();

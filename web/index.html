@@ -21,6 +21,79 @@
     </header>
 
     <main id="main-content" class="layout">
+      <section class="record-panel" aria-labelledby="record-heading">
+        <div class="section-heading">
+          <span class="step-number">00</span>
+          <div>
+            <h2 id="record-heading">경로 기록 모드</h2>
+            <p>
+              보호자가 시각장애인과 함께 실제 경로를 걸으며, 좌회전·우회전·횡단보도·계단
+              지점에서 버튼을 눌러 위치를 태깅합니다. 태깅한 지점은 지도에 즉시 표시되고,
+              "경로 저장"을 누르면 route_N.json으로 저장됩니다.
+            </p>
+          </div>
+          <span
+            id="record-recording-badge"
+            class="recording-badge"
+            hidden
+            role="status"
+            aria-live="polite"
+            >● 기록 중</span
+          >
+        </div>
+
+        <div id="record-setup" class="record-setup">
+          <label for="record-name">경로 이름</label>
+          <input
+            id="record-name"
+            type="text"
+            placeholder="예: 정문에서 공학관"
+            autocomplete="off"
+          />
+          <button id="record-start" type="button" class="primary">기록 시작</button>
+        </div>
+
+        <div id="record-active" class="record-active" hidden>
+          <p id="record-gps-status" class="field-note" aria-live="polite">
+            GPS 신호를 기다리는 중…
+          </p>
+
+          <div class="record-tag-grid">
+            <button type="button" class="secondary" data-record-tag="left_turn">
+              ↰ 좌회전
+            </button>
+            <button type="button" class="secondary" data-record-tag="right_turn">
+              ↱ 우회전
+            </button>
+            <button type="button" class="secondary" data-record-tag="crosswalk">
+              🚸 횡단보도
+            </button>
+            <button type="button" class="secondary" data-record-tag="stairs">
+              🪜 계단
+            </button>
+          </div>
+          <button
+            id="record-destination"
+            type="button"
+            class="secondary destination"
+            data-record-tag="destination"
+          >
+            📍 도착 지점 저장
+          </button>
+
+          <h3>저장된 지점 <span id="record-count">0</span></h3>
+          <ol id="record-points" class="record-points">
+            <li class="record-empty">아직 태깅한 지점이 없습니다.</li>
+          </ol>
+
+          <button id="record-save" type="button" class="primary" disabled>
+            경로 저장
+          </button>
+        </div>
+
+        <p id="record-message" class="message" role="status" aria-live="polite"></p>
+      </section>
+
       <section class="control-panel" aria-labelledby="route-heading">
         <div class="section-heading">
           <span class="step-number">01</span>

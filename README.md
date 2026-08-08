@@ -1,6 +1,6 @@
 # WAYBAND 재구성 버전
 
-시각장애인의 청각을 가리지 않으면서 보행 경로의 좌·우 회전과 주변 장애물을 진동으로 전달하기 위한 시제품입니다. 기존 `iot_example`의 카카오 장소 검색·도보 경로 호출을 유지하면서, 장소 선택, 지도 표시, GPS 기반 회전 시점 판정, 진동 명령, ToF 텔레메트리까지 하나의 흐름으로 연결했습니다.
+시각장애인의 청각을 가리지 않으면서 보행 경로의 좌·우 회전과 주변 장애물을 진동으로 전달하기 위한 시제품입니다. 기존 `iot_example`의 카카오 장소 검색·도보 경로 호출을 유지하면서, 장소 선택, 지도 표시, GPS 기반 회전 시점 판정, 진동 명령, ToF 텔레메트리, 그리고 보호자가 직접 걸으며 경로를 태깅하는 경로 기록 모드까지 하나의 흐름으로 연결했습니다.
 
 > 이 프로젝트는 연구·시연용 코드입니다. 흰지팡이, 안내견, 보행 교육 등 검증된 보조 수단을 대체하지 않습니다. 실제 도로 사용 전 사용자 연구, 접근성 전문가 검토, 충분한 야외 시험, 고장 안전 설계가 필요합니다.
 
@@ -14,6 +14,7 @@
 6. 경로에서 3회 연속 벗어나면 양쪽 팔찌 이탈 진동 명령 생성
 7. 4개 ToF 센서값을 받아 벨트 방향별 경고/위험 진동 명령 생성
 8. ESP32 같은 게이트웨이가 순번 기반으로 진동 명령을 가져갈 수 있는 폴링 API 제공
+9. **경로 기록 모드**: 보호자가 시각장애인과 함께 실제 경로를 걸으며 좌회전·우회전·횡단보도·계단·도착 지점을 웹에서 태깅 → `recorded_routes/route_N.json`으로 저장
 
 ## 전체 흐름
 
@@ -29,6 +30,8 @@ flowchart LR
     NAV --> QUEUE["진동 명령 버퍼"]
     API --> QUEUE
     QUEUE -->|폴링| MCU["팔찌·벨트 게이트웨이"]
+    UI -->|지점 태깅| REC["경로 기록 저장소"]
+    REC -->|route_N.json| FILES[("recorded_routes/")]
 ```
 
 ## 폴더 구조
@@ -40,27 +43,29 @@ WAYBAND_REBUILD/
 ├─ .env.example
 ├─ wayband/
 │  ├─ api.py                  HTTP API와 웹 파일 제공
-│  ├─ config.py               환경변수와 거리 기준
+│  ├─ config.py                환경변수와 거리 기준
 │  ├─ kakao.py                카카오 장소·도보 경로 요청
-│  ├─ models.py               장소·경로 도메인 모델
-│  ├─ route_parser.py         응답 검증·안내 분류
-│  ├─ navigation.py           GPS 회전·이탈 판정
-│  ├─ hazard.py               ToF 상태·히스테리시스
-│  ├─ haptics.py              장치 독립 진동 명령과 버퍼
-│  └─ service.py              기능 조립과 세션 상태
+│  ├─ models.py                장소·경로 도메인 모델
+│  ├─ route_parser.py          응답 검증·안내 분류
+│  ├─ navigation.py            GPS 회전·이탈 판정
+│  ├─ hazard.py                ToF 상태·히스테리시스
+│  ├─ haptics.py                장치 독립 진동 명령과 버퍼
+│  ├─ recording.py             경로 기록 모드(지점 태깅·route_N.json 저장)
+│  └─ service.py                기능 조립과 세션 상태
 ├─ web/
 │  ├─ index.html
 │  ├─ styles.css
-│  └─ app.js                  검색·지도·GPS·센서 UI
+│  └─ app.js                  검색·지도·GPS·센서·경로 기록 UI
 ├─ docs/
 │  └─ HARDWARE_PROTOCOL.md
-├─ tests/                     네트워크 없는 단위 테스트 코드
-└─ REVIEW_OF_IOT_EXAMPLE.md   기존 코드 검토 결과
+├─ recorded_routes/            경로 기록 모드 산출물(route_N.json, 실행 중 생성됨)
+├─ tests/                      네트워크 없는 단위 테스트 코드
+└─ REVIEW_OF_IOT_EXAMPLE.md    기존 코드 검토 결과
 ```
 
 ## 준비 방법
 
-아래 명령은 사용자가 실행할 때의 예시입니다. 이 전달본을 만드는 동안 서버나 테스트를 실행하지 않았습니다.
+아래 명령은 사용자가 실행할 때의 예시입니다.
 Python 3.11 이상을 권장합니다.
 
 ```powershell
@@ -88,7 +93,12 @@ KAKAO_JAVASCRIPT_KEY=웹지도용_JavaScript_키
 uvicorn app:app --reload --port 8000
 ```
 
-브라우저에서 `http://localhost:8000`을 엽니다. 장소 검색 → 후보 선택 → 경로 만들기 순서로 진행합니다. GPS 안내는 위치 권한을 허용해야 동작합니다. 일반 배포 환경에서 브라우저 위치 API는 HTTPS가 필요합니다(로컬호스트 제외).
+브라우저에서 `http://localhost:8000`을 엽니다.
+
+- 경로 기록 모드(화면 맨 위): 경로 이름 입력 → 기록 시작 → 걸으면서 좌회전/우회전/횡단보도/계단 버튼 태깅 → 도착 지점 저장 → 경로 저장. `recorded_routes/route_N.json`이 생성됩니다.
+- 카카오 자동 경로 모드(그 아래): 장소 검색 → 후보 선택 → 경로 만들기 순서로 진행합니다.
+
+GPS 관련 기능은 위치 권한을 허용해야 동작합니다. 일반 배포 환경에서 브라우저 위치 API는 HTTPS가 필요합니다(로컬호스트 제외).
 
 단위 테스트를 실행하려면 다음 명령을 사용할 수 있습니다.
 
@@ -111,6 +121,8 @@ python -m unittest discover -s tests -v
 
 패턴은 정답이 아니라 초기 가설입니다. 시각장애인 당사자와 반복 시험해 혼동률, 인지 시간, 피로도를 측정한 뒤 조정해야 합니다. 길 안내와 장애물 경고의 진동 위치·리듬을 분명히 다르게 유지하세요.
 
+> 참고: 발표 자료(PPT)의 진동 표에는 횡단보도·계단 지점도 진동 대상으로 포함되어 있습니다. 현재 `navigation.py`는 카카오 자동 경로의 좌/우/유턴/도착만 진동으로 연결하고 있고, 경로 기록 모드로 만든 `route_N.json`(횡단보도·계단 포함)을 기준으로 한 실시간 안내 로직은 아직 구현하지 않았습니다. 다음 작업으로 남겨둡니다.
+
 ## API 요약
 
 - `GET /api/places?query=...`: 장소 후보 검색
@@ -118,18 +130,25 @@ python -m unittest discover -s tests -v
 - `POST /api/navigation/{route_id}/location`: 현재 GPS 위치 전달
 - `POST /api/tof`: 4개 ToF 거리 전달
 - `GET /api/haptics?after_sequence=0`: 장치가 새 진동 명령 조회
+- `POST /api/recordings`: 경로 기록 시작 (이름 + 시작 좌표)
+- `POST /api/recordings/{recording_id}/waypoints`: 좌회전/우회전/횡단보도/계단/도착 지점 태깅
+- `GET /api/recordings/{recording_id}`: 진행 중인 기록 상태 조회
+- `POST /api/recordings/{recording_id}/finish`: 기록 종료 및 `route_N.json` 저장
+- `GET /api/recordings`: 저장된 경로 파일 목록
 - `GET /docs`: FastAPI가 생성한 상세 API 문서
 
-장치 연결용 JSON 형식은 [HARDWARE_PROTOCOL.md](docs/HARDWARE_PROTOCOL.md)를 참고하세요.
+장치 연결용 JSON 형식과 `route_N.json` 구조는 [HARDWARE_PROTOCOL.md](docs/HARDWARE_PROTOCOL.md)를 참고하세요.
 
 ## 중요한 기술적 한계
 
 - 카카오 경로 응답은 `guidance` 안내 문구와 단계 시작 좌표를 주지만, 좌/우 회전을 별도의 구조화된 필드로 제공하지 않습니다. 이 버전은 한국어 문구를 우선 분류하고, 방향 표현이 없으면 경로 기하로 보조 추정합니다.
-- `ACCESSIBLE`은 공식 문서상 “편안한 길” 탐색 옵션입니다. 턱, 공사 구간, 점자블록, 신호 상태까지 검증된 완전한 무장애 경로라는 뜻은 아닙니다.
+- `ACCESSIBLE`은 공식 문서상 "편안한 길" 탐색 옵션입니다. 턱, 공사 구간, 점자블록, 신호 상태까지 검증된 완전한 무장애 경로라는 뜻은 아닙니다.
 - 스마트폰 GPS 오차가 8m보다 클 수 있습니다. 코드가 위치 정확도를 경로 이탈 판정에는 일부 반영하지만, 회전 판정 반경은 현장 실험으로 조정해야 합니다.
 - ToF 센서는 유리, 검은 물체, 비·안개, 센서 각도, 사각지대의 영향을 받을 수 있습니다.
-- 서버 메모리에 경로와 명령을 보관하므로 재시작하면 사라집니다. 여러 서버 인스턴스나 실제 서비스에서는 Redis/DB와 사용자 인증이 필요합니다.
+- 서버 메모리에 경로와 명령을 보관하므로 재시작하면 사라집니다(경로 기록 모드로 저장한 `route_N.json` 파일만 예외). 여러 서버 인스턴스나 실제 서비스에서는 Redis/DB와 사용자 인증이 필요합니다.
 - 가장 중요한 장애물 경고는 네트워크 왕복을 거치지 말고 벨트 MCU에서 직접 판정·진동해야 합니다. `/api/tof`는 시연, 상태 표시, 기록용 보조 경로입니다.
+- 경로 기록 모드는 현재 브라우저(휴대폰) GPS를 사용합니다. 실제로는 벨트에 내장된 GPS 모듈(NEO-6M 등)이 위치를 제공할 예정이므로, 벨트-웹 통신 방식이 정해지면 위치 출처를 교체해야 합니다.
+- 경로 기록 모드로 만든 `route_N.json`을 실시간 안내(다음 waypoint까지 거리 계산, 팔찌 BLE 명령)에 사용하는 로직은 아직 없습니다.
 
 ## 공식 문서 기준
 

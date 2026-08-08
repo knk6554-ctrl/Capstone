@@ -79,6 +79,25 @@ GET /api/haptics?after_sequence=42&limit=20
 
 게이트웨이는 명령을 실행한 뒤 `lastSequence`를 비휘발성 저장소 또는 안전한 런타임 상태에 기억합니다. 같은 `commandId`를 이미 실행했다면 다시 울리지 않아야 합니다.
 
+## 경로 기록 파일(route_N.json)
+
+`POST /api/recordings/{id}/finish`가 성공하면 `recorded_routes/route_<id>.json`이 생성됩니다. 라즈베리파이 벨트가 안내 모드에서 그대로 읽어갈 수 있도록 평평한 구조를 유지합니다.
+
+```json
+{
+  "route_id": 1,
+  "name": "정문에서 공학관",
+  "waypoints": [
+    { "type": "start", "lat": 37.12345, "lon": 127.12345 },
+    { "type": "left_turn", "lat": 37.1238, "lon": 127.1237 },
+    { "type": "crosswalk", "lat": 37.124, "lon": 127.1239 },
+    { "type": "destination", "lat": 37.1242, "lon": 127.1241 }
+  ]
+}
+```
+
+`type`은 `start`, `left_turn`, `right_turn`, `crosswalk`, `stairs`, `destination` 중 하나입니다. 이 서버는 아직 이 파일을 기준으로 실시간 판단(다음 waypoint까지 거리 계산, BLE 명령 전송)을 수행하지 않습니다. 현재는 기록만 담당하며, 실시간 판단은 벨트(라즈베리파이) 또는 이후 서버 확장에서 구현해야 합니다.
+
 ## 장치 구현 권장 사항
 
 - 명령 생성 시각이 너무 오래된 명령은 버립니다. 서버와 MCU의 시계 동기화가 어렵다면 수신 후 TTL을 별도 필드로 확장하세요.

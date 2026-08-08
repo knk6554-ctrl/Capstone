@@ -145,6 +145,12 @@ section {
   box-shadow: var(--shadow);
 }
 
+.record-panel {
+  grid-column: span 2;
+  position: relative;
+  border-color: var(--yellow);
+}
+
 .control-panel {
   grid-row: span 2;
 }
@@ -182,6 +188,94 @@ section {
   font-weight: 900;
   letter-spacing: 0.1em;
   padding-top: 0.35rem;
+}
+
+.recording-badge {
+  margin-left: auto;
+  align-self: flex-start;
+  padding: 0.5rem 0.9rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 900;
+  color: #2a0b0b;
+  background: var(--danger);
+  white-space: nowrap;
+}
+
+.record-setup {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.record-setup #record-start {
+  width: 100%;
+}
+
+.record-active {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.record-tag-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.65rem;
+}
+
+.record-active button.destination {
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+
+.record-active h3 {
+  margin: 0.4rem 0 0;
+  font-size: 1rem;
+  color: var(--muted);
+}
+
+.record-points {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.record-points li {
+  padding: 0.65rem 0.8rem;
+  border-radius: 10px;
+  background: #091625;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  font-size: 0.88rem;
+}
+
+.record-points li span {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.record-points li.record-empty {
+  color: var(--muted);
+  justify-content: flex-start;
+}
+
+#record-save {
+  width: 100%;
+}
+
+.record-marker-label {
+  padding: 0.2rem 0.55rem;
+  border-radius: 8px;
+  background: #07111f;
+  border: 1px solid var(--yellow);
+  color: var(--yellow);
+  font-size: 0.72rem;
+  font-weight: 800;
+  white-space: nowrap;
 }
 
 .place-search {
@@ -385,6 +479,7 @@ footer strong {
     grid-template-columns: 1fr;
   }
 
+  .record-panel,
   .control-panel,
   .sensor-panel,
   .haptic-panel {
@@ -397,7 +492,8 @@ footer strong {
   .search-row,
   .button-pair,
   .sensor-grid,
-  .sensor-status {
+  .sensor-status,
+  .record-tag-grid {
     grid-template-columns: 1fr;
   }
 

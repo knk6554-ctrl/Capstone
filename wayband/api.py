@@ -12,15 +12,22 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from .config import Settings
+from .config import PROJECT_ROOT, Settings
 from .hazard import HazardDetector, SensorZone
 from .haptics import HapticCommand
 from .kakao import KakaoApiError
 from .models import Coordinate, Place
+from .recording import (
+    RecordingAlreadyFinishedError,
+    RecordingNotFoundError,
+    RecordingStore,
+    WaypointType,
+)
 from .service import RouteNotFoundError, WaybandService
 
 
 WEB_ROOT = Path(__file__).resolve().parents[1] / "web"
+RECORDED_ROUTES_DIR = PROJECT_ROOT / "recorded_routes"
 
 
 class CoordinateBody(BaseModel):
@@ -80,6 +87,16 @@ class TofBody(BaseModel):
         }
 
 
+class StartRecordingBody(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    coordinate: CoordinateBody
+
+
+class RecordingWaypointBody(BaseModel):
+    type: Literal["left_turn", "right_turn", "crosswalk", "stairs", "destination"]
+    coordinate: CoordinateBody
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = Settings.from_environment()
@@ -90,6 +107,7 @@ async def lifespan(app: FastAPI):
         critical_mm=settings.tof_critical_mm,
         clear_mm=settings.tof_clear_mm,
     )
+    app.state.recordings = RecordingStore(RECORDED_ROUTES_DIR)
     yield
 
 
@@ -102,6 +120,10 @@ app = FastAPI(
 
 def _service(request: Request) -> WaybandService:
     return request.app.state.service
+
+
+def _recordings(request: Request) -> RecordingStore:
+    return request.app.state.recordings
 
 
 @app.exception_handler(KakaoApiError)
@@ -210,6 +232,73 @@ def pending_haptics(
         "commands": [item.to_public_dict() for item in items],
         "lastSequence": items[-1].sequence if items else after_sequence,
     }
+
+
+# ---------------------------------------------------------------------------
+# 경로 기록 모드 (Route recording mode)
+#
+# A companion walks the real route once with the visually impaired user and
+# taps a button at each turn/crosswalk/stairs/destination. Each tap sends the
+# phone's current GPS coordinate plus the point type; on "경로 저장" the
+# tagged points are written to recorded_routes/route_<id>.json in the shape
+# the belt (Raspberry Pi) is expected to read for guidance mode. This service
+# does not itself run turn-by-turn guidance against these recordings yet.
+# ---------------------------------------------------------------------------
+
+
+@app.post("/api/recordings", status_code=201)
+def start_recording(request: Request, body: StartRecordingBody) -> dict[str, object]:
+    try:
+        session = _recordings(request).start(body.name, body.coordinate.to_domain())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return session.to_public_dict()
+
+
+@app.get("/api/recordings")
+def list_saved_recordings(request: Request) -> dict[str, object]:
+    return {"routes": _recordings(request).list_saved()}
+
+
+@app.get("/api/recordings/{recording_id}")
+def get_recording(request: Request, recording_id: str) -> dict[str, object]:
+    try:
+        return _recordings(request).get(recording_id).to_public_dict()
+    except RecordingNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="기록을 찾을 수 없습니다.") from exc
+
+
+@app.post("/api/recordings/{recording_id}/waypoints", status_code=201)
+def add_recording_waypoint(
+    request: Request,
+    recording_id: str,
+    body: RecordingWaypointBody,
+) -> dict[str, object]:
+    try:
+        waypoint = _recordings(request).add_waypoint(
+            recording_id,
+            WaypointType(body.type),
+            body.coordinate.to_domain(),
+        )
+    except RecordingNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="기록을 찾을 수 없습니다.") from exc
+    except RecordingAlreadyFinishedError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return waypoint.to_public_dict()
+
+
+@app.post("/api/recordings/{recording_id}/finish")
+def finish_recording(request: Request, recording_id: str) -> dict[str, object]:
+    try:
+        return _recordings(request).finish(recording_id)
+    except RecordingNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="기록을 찾을 수 없습니다.") from exc
+    except RecordingAlreadyFinishedError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 app.mount("/static", StaticFiles(directory=WEB_ROOT), name="static")
