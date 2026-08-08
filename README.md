@@ -16,6 +16,7 @@
 8. ESP32 같은 게이트웨이가 순번 기반으로 진동 명령을 가져갈 수 있는 폴링 API 제공
 9. **경로 기록 모드**: 보호자가 시각장애인과 함께 실제 경로를 걸으며 좌회전·우회전·횡단보도·계단·도착 지점을 웹에서 태깅 → `recorded_routes/route_N.json`으로 저장
 10. **경로 안내 모드(기록한 경로)**: 저장된 `route_N.json`을 불러와 GPS로 다음 지점까지 거리를 계산하고, 지점 유형에 맞는 진동 명령을 생성해 `/api/haptics` 버퍼에 발행
+11. **위험 버튼 알림**: 시각장애인 쪽 위험 버튼(시뮬레이터)을 누르면 보호자 화면에 빨간 배너로 알림 표시 (페이지가 열려 있는 동안 4초마다 폴링)
 
 ## 전체 흐름
 
@@ -138,6 +139,9 @@ python -m unittest discover -s tests -v
 - `GET /api/recordings`: 저장된 경로 파일 목록
 - `POST /api/recorded-routes/{route_id}/start`: 저장된 경로로 안내 세션 시작
 - `POST /api/recorded-routes/{route_id}/location`: 안내 중 GPS 위치 전달 → 다음 지점 거리·진동 판정
+- `POST /api/emergency`: 위험 버튼 트리거
+- `GET /api/emergency`: 현재 활성화된 알림 조회
+- `POST /api/emergency/{alert_id}/acknowledge`: 알림 확인 처리
 - `GET /docs`: FastAPI가 생성한 상세 API 문서
 
 장치 연결용 JSON 형식과 `route_N.json` 구조는 [HARDWARE_PROTOCOL.md](docs/HARDWARE_PROTOCOL.md)를 참고하세요.
@@ -152,6 +156,7 @@ python -m unittest discover -s tests -v
 - 가장 중요한 장애물 경고는 네트워크 왕복을 거치지 말고 벨트 MCU에서 직접 판정·진동해야 합니다. `/api/tof`는 시연, 상태 표시, 기록용 보조 경로입니다.
 - 경로 기록 모드와 경로 안내 모드 모두 현재 브라우저(휴대폰) GPS를 사용합니다. 실제로는 벨트에 내장된 GPS 모듈(NEO-6M 등)이 위치를 제공할 예정이므로, 벨트-웹 통신 방식이 정해지면 위치 출처를 교체해야 합니다.
 - 경로 안내 모드는 진동 명령을 만들어 `/api/haptics` 버퍼에 쌓는 것까지만 합니다. 팔찌로 실제 BLE 전송은 아직 없습니다(HTTP 폴링 규격만 정의됨).
+- 위험 버튼 알림은 보호자가 페이지를 열어둔 상태에서만 보입니다. 백그라운드 푸시(웹 푸시·알림톡·SMS)와 보호자·장애인 계정 구분은 아직 없습니다.
 
 ## 공식 문서 기준
 

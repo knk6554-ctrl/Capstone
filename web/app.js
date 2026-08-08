@@ -9,25 +9,6 @@ const state = {
   route: null,
   watchId: null,
   hapticLogStarted: false,
-  recording: null,
-  recordingWatchId: null,
-  recordingLastPosition: null,
-  recordingMarkers: [],
-  recordingLine: null,
-  recordingPath: [],
-  guided: null,
-  guidedWatchId: null,
-  guidedMarkers: [],
-  guidedLine: null,
-};
-
-const RECORD_TAG_LABELS = {
-  start: "시작",
-  left_turn: "좌회전",
-  right_turn: "우회전",
-  crosswalk: "횡단보도",
-  stairs: "계단",
-  destination: "도착",
 };
 
 const elements = {
@@ -46,26 +27,25 @@ const elements = {
   nextGuidance: document.querySelector("#next-guidance"),
   hapticLog: document.querySelector("#haptic-log"),
   sensorStatus: document.querySelector("#sensor-status"),
-  recordName: document.querySelector("#record-name"),
-  recordStart: document.querySelector("#record-start"),
-  recordSetup: document.querySelector("#record-setup"),
-  recordActive: document.querySelector("#record-active"),
-  recordGpsStatus: document.querySelector("#record-gps-status"),
-  recordPoints: document.querySelector("#record-points"),
-  recordCount: document.querySelector("#record-count"),
-  recordSave: document.querySelector("#record-save"),
-  recordMessage: document.querySelector("#record-message"),
-  recordBadge: document.querySelector("#record-recording-badge"),
-  guidedSelect: document.querySelector("#guided-route-select"),
-  guidedRefresh: document.querySelector("#guided-refresh"),
-  guidedStart: document.querySelector("#guided-start"),
-  guidedStop: document.querySelector("#guided-stop"),
-  guidedNext: document.querySelector("#guided-next"),
+  emergencyBanner: document.querySelector("#emergency-banner"),
+  emergencyMessage: document.querySelector("#emergency-message"),
+  emergencyTime: document.querySelector("#emergency-time"),
+  emergencyAck: document.querySelector("#emergency-ack"),
+  emergencyTrigger: document.querySelector("#emergency-trigger"),
 };
+
+function switchTab(tabName) {
+  document.querySelectorAll("[data-tab]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.tab === tabName);
+  });
+  document.querySelectorAll(".tab-panel").forEach((panel) => {
+    panel.classList.toggle("is-active", panel.id === `tab-${tabName}`);
+  });
+}
 
 function setStatus(message, isError = false) {
   elements.systemStatus.textContent = message;
-  elements.systemStatus.style.color = isError ? "var(--danger)" : "var(--yellow)";
+  elements.systemStatus.style.color = isError ? "var(--danger)" : "var(--amber-deep)";
 }
 
 async function api(url, options = {}) {
@@ -117,6 +97,10 @@ async function initialize() {
 }
 
 function bindEvents() {
+  document.querySelectorAll("[data-tab]").forEach((button) => {
+    button.addEventListener("click", () => switchTab(button.dataset.tab));
+  });
+
   document.querySelectorAll("[data-search]").forEach((button) => {
     button.addEventListener("click", () => searchPlaces(button.dataset.search));
   });
@@ -133,19 +117,10 @@ function bindEvents() {
   elements.stopNavigation.addEventListener("click", stopNavigation);
   document.querySelector("#send-tof").addEventListener("click", sendTofReadings);
 
-  elements.recordStart.addEventListener("click", startRecording);
-  elements.recordSave.addEventListener("click", finishRecording);
-  document.querySelectorAll("[data-record-tag]").forEach((button) => {
-    button.addEventListener("click", () => tagRecordingWaypoint(button.dataset.recordTag));
-  });
-
-  elements.guidedRefresh.addEventListener("click", loadSavedRoutes);
-  elements.guidedSelect.addEventListener("change", () => {
-    elements.guidedStart.disabled = !elements.guidedSelect.value;
-  });
-  elements.guidedStart.addEventListener("click", startGuidedNavigation);
-  elements.guidedStop.addEventListener("click", stopGuidedNavigation);
-  loadSavedRoutes();
+  elements.emergencyTrigger.addEventListener("click", triggerEmergency);
+  elements.emergencyAck.addEventListener("click", acknowledgeEmergency);
+  pollEmergency();
+  setInterval(pollEmergency, 4000);
 }
 
 async function searchPlaces(kind) {
@@ -257,7 +232,7 @@ function drawRoute(route) {
     map: state.map,
     path,
     strokeWeight: 7,
-    strokeColor: "#087f75",
+    strokeColor: "#0f6e56",
     strokeOpacity: 0.95,
     strokeStyle: "solid",
   });
@@ -415,329 +390,84 @@ function renderSensorStatus(sensors) {
 }
 
 // ---------------------------------------------------------------------------
-// 경로 기록 모드
+// 위험 버튼 알림
 //
-// A companion walks the real route once and taps a button at each turn,
-// crosswalk, stairs, or the destination. Every tap sends the phone's current
-// GPS fix plus the point type to the server; "경로 저장" writes the tagged
-// points to route_N.json. This mode uses the browser's own GPS as a stand-in
-// for the belt's GPS module until that integration exists.
+// The danger-button press (simulated here) sets one active alert on the
+// server. This page polls it every few seconds and shows a banner while
+// unacknowledged. The caregiver must have this page open -- there is no
+// background push yet.
 // ---------------------------------------------------------------------------
 
-function startRecording() {
-  const name = elements.recordName.value.trim();
-  if (!name) {
-    elements.recordMessage.textContent = "경로 이름을 입력하세요.";
-    return;
-  }
-  if (!navigator.geolocation) {
-    elements.recordMessage.textContent = "이 브라우저에서는 위치 기능을 사용할 수 없습니다.";
-    return;
-  }
+let lastSeenAlertId = null;
 
-  elements.recordStart.disabled = true;
-  elements.recordMessage.textContent = "현재 위치를 확인하는 중…";
-
-  navigator.geolocation.getCurrentPosition(
-    async (position) => {
-      const coordinate = {
-        longitude: position.coords.longitude,
-        latitude: position.coords.latitude,
-      };
-      try {
-        const session = await api("/api/recordings", {
-          method: "POST",
-          body: JSON.stringify({ name, coordinate }),
-        });
-        beginRecordingSession(session, coordinate);
-      } catch (error) {
-        elements.recordMessage.textContent = error.message;
-        elements.recordStart.disabled = false;
+async function triggerEmergency() {
+  elements.emergencyTrigger.disabled = true;
+  const payload = { message: "도움이 필요합니다." };
+  try {
+    if (navigator.geolocation) {
+      const position = await new Promise((resolve) => {
+        navigator.geolocation.getCurrentPosition(
+          resolve,
+          () => resolve(null),
+          { enableHighAccuracy: true, timeout: 4000 },
+        );
+      });
+      if (position) {
+        payload.coordinate = {
+          longitude: position.coords.longitude,
+          latitude: position.coords.latitude,
+        };
       }
-    },
-    (error) => {
-      elements.recordMessage.textContent = `위치 오류: ${error.message}`;
-      elements.recordStart.disabled = false;
-    },
-    { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 },
-  );
-}
-
-function beginRecordingSession(session, startCoordinate) {
-  state.recording = session;
-  state.recordingLastPosition = startCoordinate;
-  state.recordingPath = [startCoordinate];
-  state.recordingMarkers.forEach((marker) => marker.setMap(null));
-  state.recordingMarkers = [];
-  if (state.recordingLine) state.recordingLine.setMap(null);
-  state.recordingLine = null;
-
-  elements.recordSetup.hidden = true;
-  elements.recordActive.hidden = false;
-  elements.recordBadge.hidden = false;
-  elements.recordSave.disabled = true;
-  elements.recordMessage.textContent = "";
-  renderRecordingWaypoints(session.waypoints);
-  placeRecordingMarker(session.waypoints[0]);
-
-  state.recordingWatchId = navigator.geolocation.watchPosition(
-    (position) => {
-      state.recordingLastPosition = {
-        longitude: position.coords.longitude,
-        latitude: position.coords.latitude,
-      };
-      state.recordingPath.push(state.recordingLastPosition);
-      updateRecordingLine();
-      elements.recordGpsStatus.textContent = `GPS 정확도 ±${Math.round(
-        position.coords.accuracy,
-      )}m`;
-    },
-    (error) => {
-      elements.recordGpsStatus.textContent = `위치 오류: ${error.message}`;
-    },
-    { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 },
-  );
-}
-
-async function tagRecordingWaypoint(type) {
-  if (!state.recording || !state.recordingLastPosition) {
-    elements.recordMessage.textContent = "먼저 기록을 시작하고 GPS 신호를 기다려 주세요.";
-    return;
-  }
-  try {
-    const waypoint = await api(`/api/recordings/${state.recording.recordingId}/waypoints`, {
-      method: "POST",
-      body: JSON.stringify({ type, coordinate: state.recordingLastPosition }),
-    });
-    state.recording.waypoints.push(waypoint);
-    renderRecordingWaypoints(state.recording.waypoints);
-    placeRecordingMarker(waypoint);
-    elements.recordMessage.textContent = "";
-    if (type === "destination") {
-      elements.recordSave.disabled = false;
     }
+    await api("/api/emergency", { method: "POST", body: JSON.stringify(payload) });
+    await pollEmergency();
   } catch (error) {
-    elements.recordMessage.textContent = error.message;
-  }
-}
-
-function placeRecordingMarker(waypoint) {
-  if (!state.map) return;
-  const position = new window.kakao.maps.LatLng(waypoint.lat, waypoint.lon);
-  const marker = new window.kakao.maps.Marker({ map: state.map, position });
-  const label = new window.kakao.maps.CustomOverlay({
-    map: state.map,
-    position,
-    yAnchor: 2.1,
-    content: `<div class="record-marker-label">${RECORD_TAG_LABELS[waypoint.type] || waypoint.type}</div>`,
-  });
-  state.recordingMarkers.push(marker, label);
-  state.map.panTo(position);
-}
-
-function updateRecordingLine() {
-  if (!state.map || state.recordingPath.length < 2) return;
-  const path = state.recordingPath.map(
-    (point) => new window.kakao.maps.LatLng(point.latitude, point.longitude),
-  );
-  if (state.recordingLine) {
-    state.recordingLine.setPath(path);
-    return;
-  }
-  state.recordingLine = new window.kakao.maps.Polyline({
-    map: state.map,
-    path,
-    strokeWeight: 5,
-    strokeColor: "#ffd449",
-    strokeOpacity: 0.85,
-    strokeStyle: "shortdash",
-  });
-}
-
-function renderRecordingWaypoints(waypoints) {
-  elements.recordCount.textContent = String(
-    waypoints.filter((waypoint) => waypoint.type !== "start").length,
-  );
-  elements.recordPoints.replaceChildren();
-  if (waypoints.length === 0) {
-    const empty = document.createElement("li");
-    empty.className = "record-empty";
-    empty.textContent = "아직 태깅한 지점이 없습니다.";
-    elements.recordPoints.appendChild(empty);
-    return;
-  }
-  waypoints.forEach((waypoint) => {
-    const item = document.createElement("li");
-    const label = RECORD_TAG_LABELS[waypoint.type] || waypoint.type;
-    const time = waypoint.recordedAt ? new Date(waypoint.recordedAt) : null;
-    const timeText = time ? time.toLocaleTimeString("ko-KR", { hour12: false }) : "";
-    item.innerHTML = `<strong>${label}</strong><span>${waypoint.lat.toFixed(5)}, ${waypoint.lon.toFixed(5)} · ${timeText}</span>`;
-    elements.recordPoints.appendChild(item);
-  });
-}
-
-async function finishRecording() {
-  if (!state.recording) return;
-  elements.recordSave.disabled = true;
-  try {
-    const result = await api(`/api/recordings/${state.recording.recordingId}/finish`, {
-      method: "POST",
-    });
-    elements.recordMessage.textContent = `저장 완료: ${result.fileName} (지점 ${result.waypoints.length}개)`;
-    elements.recordBadge.hidden = true;
-    if (state.recordingWatchId !== null) {
-      navigator.geolocation.clearWatch(state.recordingWatchId);
-      state.recordingWatchId = null;
-    }
-    state.recording = null;
-    elements.recordActive.hidden = true;
-    elements.recordSetup.hidden = false;
-    elements.recordStart.disabled = false;
-    elements.recordName.value = "";
-  } catch (error) {
-    elements.recordMessage.textContent = error.message;
-    elements.recordSave.disabled = false;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// 경로 안내 모드 (기록한 경로)
-//
-// Loads a route saved by 경로 기록 모드 and, as the browser's GPS updates,
-// asks the server how far the next tagged waypoint is. The server also
-// publishes haptic commands into the same buffer /api/haptics polls, and
-// they show up in the existing "진동 명령 로그" panel via appendHapticCommands.
-// ---------------------------------------------------------------------------
-
-async function loadSavedRoutes() {
-  elements.guidedSelect.disabled = true;
-  elements.guidedStart.disabled = true;
-  try {
-    const { routes } = await api("/api/recordings");
-    elements.guidedSelect.replaceChildren();
-    if (!routes.length) {
-      const option = document.createElement("option");
-      option.value = "";
-      option.textContent = "저장된 경로가 없습니다";
-      elements.guidedSelect.appendChild(option);
-      return;
-    }
-    const placeholder = document.createElement("option");
-    placeholder.value = "";
-    placeholder.textContent = "경로를 선택하세요";
-    elements.guidedSelect.appendChild(placeholder);
-    routes.forEach((route) => {
-      const option = document.createElement("option");
-      option.value = String(route.routeId);
-      option.textContent = `${route.name} (지점 ${route.waypointCount}개)`;
-      elements.guidedSelect.appendChild(option);
-    });
-  } catch (error) {
-    elements.guidedNext.textContent = error.message;
+    setStatus(error.message, true);
   } finally {
-    elements.guidedSelect.disabled = false;
+    elements.emergencyTrigger.disabled = false;
   }
 }
 
-async function startGuidedNavigation() {
-  const routeId = elements.guidedSelect.value;
-  if (!routeId || !navigator.geolocation) {
-    elements.guidedNext.textContent = "이 브라우저에서는 위치 기능을 사용할 수 없습니다.";
-    return;
-  }
-  elements.guidedStart.disabled = true;
+async function pollEmergency() {
   try {
-    const session = await api(`/api/recorded-routes/${routeId}/start`, { method: "POST" });
-    state.guided = session;
-    drawGuidedRoute(session.waypoints);
-    elements.guidedNext.textContent = `${session.name} 안내를 시작합니다. GPS 신호를 기다리는 중…`;
-    elements.guidedStop.disabled = false;
-    elements.guidedSelect.disabled = true;
-
-    state.guidedWatchId = navigator.geolocation.watchPosition(
-      updateGuidedLocation,
-      (error) => {
-        elements.guidedNext.textContent = `위치 오류: ${error.message}`;
-      },
-      { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 },
-    );
-  } catch (error) {
-    elements.guidedNext.textContent = error.message;
-    elements.guidedStart.disabled = false;
-  }
-}
-
-function stopGuidedNavigation() {
-  if (state.guidedWatchId !== null) navigator.geolocation.clearWatch(state.guidedWatchId);
-  state.guidedWatchId = null;
-  state.guided = null;
-  elements.guidedStart.disabled = !elements.guidedSelect.value;
-  elements.guidedStop.disabled = true;
-  elements.guidedSelect.disabled = false;
-}
-
-async function updateGuidedLocation(position) {
-  if (!state.guided) return;
-  const location = {
-    longitude: position.coords.longitude,
-    latitude: position.coords.latitude,
-    accuracy_meters: position.coords.accuracy,
-  };
-  try {
-    const result = await api(`/api/recorded-routes/${state.guided.routeId}/location`, {
-      method: "POST",
-      body: JSON.stringify(location),
-    });
-    if (result.completed) {
-      elements.guidedNext.textContent = "목적지에 도착했습니다.";
-      stopGuidedNavigation();
+    const { alert } = await api("/api/emergency");
+    if (alert) {
+      showEmergencyBanner(alert);
     } else {
-      const next = result.nextWaypoint;
-      const routeState = result.offRoute ? "경로 이탈 감지 · " : "";
-      elements.guidedNext.textContent = `${routeState}${Math.round(next.distanceMeters)}m 후 ${next.label}`;
+      hideEmergencyBanner();
     }
-    appendHapticCommands(result.commands);
   } catch (error) {
-    elements.guidedNext.textContent = error.message;
+    // Polling failures shouldn't interrupt the rest of the page.
   }
 }
 
-function drawGuidedRoute(waypoints) {
-  if (!state.map) return;
-  state.guidedMarkers.forEach((marker) => marker.setMap(null));
-  state.guidedMarkers = [];
-  if (state.guidedLine) state.guidedLine.setMap(null);
-
-  const path = waypoints.map((point) => new window.kakao.maps.LatLng(point.lat, point.lon));
-  state.guidedLine = new window.kakao.maps.Polyline({
-    map: state.map,
-    path,
-    strokeWeight: 5,
-    strokeColor: "#4ce5dc",
-    strokeOpacity: 0.9,
-    strokeStyle: "solid",
-  });
-
-  waypoints.forEach((point) => {
-    const position = new window.kakao.maps.LatLng(point.lat, point.lon);
-    const marker = new window.kakao.maps.Marker({ map: state.map, position });
-    const label = new window.kakao.maps.CustomOverlay({
-      map: state.map,
-      position,
-      yAnchor: 2.1,
-      content: `<div class="record-marker-label">${RECORD_TAG_LABELS[point.type] || point.type}</div>`,
-    });
-    state.guidedMarkers.push(marker, label);
-  });
-
-  const bounds = new window.kakao.maps.LatLngBounds();
-  path.forEach((point) => bounds.extend(point));
-  state.map.setBounds(bounds, 70, 70, 70, 70);
+function showEmergencyBanner(alert) {
+  lastSeenAlertId = alert.alertId;
+  elements.emergencyBanner.hidden = false;
+  elements.emergencyMessage.textContent = alert.message;
+  const time = new Date(alert.triggeredAt);
+  elements.emergencyTime.textContent = time.toLocaleTimeString("ko-KR", { hour12: false });
+  elements.emergencyAck.dataset.alertId = alert.alertId;
 }
 
-window.addEventListener("beforeunload", () => {
-  stopNavigation();
-  stopGuidedNavigation();
-  if (state.recordingWatchId !== null) navigator.geolocation.clearWatch(state.recordingWatchId);
-});
+function hideEmergencyBanner() {
+  elements.emergencyBanner.hidden = true;
+  lastSeenAlertId = null;
+}
+
+async function acknowledgeEmergency() {
+  const alertId = elements.emergencyAck.dataset.alertId || lastSeenAlertId;
+  if (!alertId) return;
+  elements.emergencyAck.disabled = true;
+  try {
+    await api(`/api/emergency/${alertId}/acknowledge`, { method: "POST" });
+    hideEmergencyBanner();
+  } catch (error) {
+    hideEmergencyBanner();
+  } finally {
+    elements.emergencyAck.disabled = false;
+  }
+}
+
+window.addEventListener("beforeunload", stopNavigation);
 initialize();

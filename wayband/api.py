@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from .config import PROJECT_ROOT, Settings
+from .emergency import AlertNotFoundError, EmergencyCenter
 from .hazard import HazardDetector, SensorZone
 from .haptics import HapticCommand
 from .kakao import KakaoApiError
@@ -98,6 +99,11 @@ class RecordingWaypointBody(BaseModel):
     coordinate: CoordinateBody
 
 
+class EmergencyBody(BaseModel):
+    message: str = Field(default="", max_length=200)
+    coordinate: CoordinateBody | None = None
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = Settings.from_environment()
@@ -112,6 +118,7 @@ async def lifespan(app: FastAPI):
     app.state.recorded_navigation = RecordedNavigationService(
         app.state.recordings, settings
     )
+    app.state.emergency = EmergencyCenter()
     yield
 
 
@@ -348,6 +355,42 @@ def update_recorded_navigation_location(
     command_objects = cast(list[HapticCommand], result.pop("_commandObjects"))
     _service(request).commands.publish(command_objects)
     return result
+
+
+# ---------------------------------------------------------------------------
+# 위험 버튼 알림 (Emergency alert)
+#
+# The visually impaired user's danger button (simulated here) triggers an
+# alert; the caregiver's browser polls GET /api/emergency while its page is
+# open and shows a banner. No push/SMS yet -- see README.
+# ---------------------------------------------------------------------------
+
+
+@app.post("/api/emergency", status_code=201)
+def trigger_emergency(request: Request, body: EmergencyBody) -> dict[str, object]:
+    center: EmergencyCenter = request.app.state.emergency
+    location = body.coordinate.to_domain() if body.coordinate is not None else None
+    alert = center.trigger(body.message, location)
+    return alert.to_public_dict()
+
+
+@app.get("/api/emergency")
+def get_active_emergency(request: Request) -> dict[str, object]:
+    center: EmergencyCenter = request.app.state.emergency
+    alert = center.current()
+    return {"alert": alert.to_public_dict() if alert is not None else None}
+
+
+@app.post("/api/emergency/{alert_id}/acknowledge")
+def acknowledge_emergency(request: Request, alert_id: str) -> dict[str, object]:
+    center: EmergencyCenter = request.app.state.emergency
+    try:
+        alert = center.acknowledge(alert_id)
+    except AlertNotFoundError as exc:
+        raise HTTPException(
+            status_code=404, detail="활성화된 알림을 찾을 수 없습니다."
+        ) from exc
+    return alert.to_public_dict()
 
 
 app.mount("/static", StaticFiles(directory=WEB_ROOT), name="static")
