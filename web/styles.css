@@ -123,7 +123,7 @@ label {
   z-index: 1;
   max-width: 1440px;
   margin: 0 auto;
-  padding: 2.25rem clamp(1rem, 5vw, 5rem) 1.5rem;
+  padding: 2.5rem clamp(1rem, 5vw, 5rem) 1.75rem;
   display: flex;
   justify-content: space-between;
   gap: 2rem;
@@ -131,9 +131,10 @@ label {
 }
 
 .logo {
-  height: 52px;
+  height: 64px;
   width: auto;
   display: block;
+  object-fit: contain;
 }
 
 .status-pill {
@@ -199,7 +200,7 @@ label {
   margin: 0 auto;
   padding: 0 clamp(1rem, 5vw, 5rem) 4rem;
   display: grid;
-  grid-template-columns: 92px minmax(320px, 0.85fr) minmax(380px, 1.15fr);
+  grid-template-columns: 108px minmax(320px, 0.85fr) minmax(380px, 1.15fr);
   gap: 1.25rem;
   align-items: start;
 }
@@ -209,9 +210,9 @@ label {
   top: 1.5rem;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  padding: 0.9rem 0.6rem;
-  border-radius: 24px;
+  gap: 0.9rem;
+  padding: 1rem 0.65rem;
+  border-radius: 30px;
   background: var(--glass-fill);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
@@ -223,22 +224,24 @@ label {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.3rem;
-  border-radius: 16px;
+  justify-content: center;
+  gap: 0.55rem;
+  border-radius: 22px;
   background: transparent;
   border: 1px solid transparent;
-  padding: 0.7rem 0.4rem;
+  padding: 1.4rem 0.4rem;
   font-weight: 500;
   color: var(--muted);
-  min-height: 64px;
+  min-height: 128px;
 }
 
 .tab-button i {
-  font-size: 20px;
+  font-size: 22px;
 }
 
 .tab-label {
-  font-size: 0.72rem;
+  font-size: 0.74rem;
+  writing-mode: horizontal-tb;
 }
 
 .tab-button.is-active {
