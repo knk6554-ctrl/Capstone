@@ -86,10 +86,12 @@ function loadKakaoMap(javascriptKey) {
 }
 
 async function initialize() {
+  // 버튼 이벤트는 지도 로딩 성공 여부와 무관하게 항상 연결한다.
+  // (지도 SDK가 실패해도 현위치·검색·경로 생성은 좌표 기반으로 동작해야 한다.)
+  bindEvents();
   try {
     const config = await api("/api/config");
     await loadKakaoMap(config.kakaoJavascriptKey);
-    bindEvents();
     setStatus("지도 준비 완료");
   } catch (error) {
     setStatus(error.message, true);
@@ -239,11 +241,15 @@ function selectPlace(kind, place) {
   document.querySelector(`#${kind}-results`).replaceChildren();
   elements.createRoute.disabled = !(state.selected.start && state.selected.destination);
 
-  const position = new window.kakao.maps.LatLng(
-    place.coordinate.latitude,
-    place.coordinate.longitude,
-  );
-  state.map.panTo(position);
+  // 지도가 아직 준비되지 않았어도 출발/도착 선택 자체는 유지되어야 한다.
+  if (state.map && window.kakao?.maps) {
+    state.map.panTo(
+      new window.kakao.maps.LatLng(
+        place.coordinate.latitude,
+        place.coordinate.longitude,
+      ),
+    );
+  }
 }
 
 function placeRequest(place) {
@@ -285,6 +291,8 @@ async function createRoute() {
 }
 
 function drawRoute(route) {
+  // 지도 SDK가 없으면 경로 요약/안내 텍스트만 표시하고 지도 그리기는 건너뛴다.
+  if (!state.map || !window.kakao?.maps) return;
   if (state.routeLine) state.routeLine.setMap(null);
   state.markers.forEach((marker) => marker.setMap(null));
   state.markers = [];
@@ -398,6 +406,7 @@ async function updateLocation(position) {
 }
 
 function updateUserMarker(location) {
+  if (!state.map || !window.kakao?.maps) return;
   const position = new window.kakao.maps.LatLng(location.latitude, location.longitude);
   if (!state.userMarker) {
     state.userMarker = new window.kakao.maps.Marker({
