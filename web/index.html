@@ -3,17 +3,17 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#f5f5f7" />
+    <meta name="theme-color" content="#f2f2f6" />
     <title>WAYBAND · 햅틱 보행 내비게이션</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2/dist/tabler-icons.min.css" />
-    <link rel="stylesheet" href="/static/styles.css" />
+    <link rel="stylesheet" href="/static/styles.css?v=apple-v3" />
   </head>
   <body>
     <a class="skip-link" href="#main-content">본문으로 바로가기</a>
@@ -22,7 +22,7 @@
     <div class="blob blob-amber" aria-hidden="true"></div>
     <div class="blob blob-teal" aria-hidden="true"></div>
 
-    <!-- Header / Navigation Pill Bar -->
+    <!-- Floating Navigation Header Bar -->
     <header class="hero">
       <div class="brand-group">
         <img src="/static/assets/logo.png" alt="WAYBAND" class="logo" />
@@ -50,7 +50,7 @@
 
     <!-- Main Workspace Layout -->
     <main id="main-content" class="layout">
-      <!-- iOS-Style Segmented Tab Rail -->
+      <!-- iOS Segmented Tab Dock -->
       <aside class="tab-rail" aria-label="화면 전환">
         <button type="button" class="tab-button is-active" data-tab="kakao" title="경로 안내">
           <i class="ti ti-map-pin" aria-hidden="true"></i>
@@ -69,7 +69,7 @@
           <div class="section-heading">
             <div>
               <h2 id="route-heading">경로 안내</h2>
-              <p>출발지와 도착지를 검색하여 도보 경로를 생성합니다.</p>
+              <p>출발지와 도착지를 검색하여 안전한 보행 경로를 생성합니다.</p>
             </div>
           </div>
 
@@ -122,7 +122,7 @@
           </button>
           <p id="route-message" class="message" role="status" aria-live="polite"></p>
 
-          <!-- Summary Metric Cards -->
+          <!-- Apple Health Style Summary Metric Cards -->
           <div id="route-summary" class="summary-grid" hidden>
             <article>
               <span>총 거리</span>
@@ -219,6 +219,6 @@
       <strong>안전 및 접근성 안내</strong>
       <span>본 시스템은 프로토타입 연구용이며 흰지팡이 및 안내견 등 표준 보행 보조 수단을 보완하도록 설계되었습니다.</span>
     </footer>
-    <script src="/static/app.js" defer></script>
+    <script src="/static/app.js?v=apple-v2" defer></script>
   </body>
 </html>
