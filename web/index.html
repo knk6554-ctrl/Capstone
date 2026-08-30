@@ -86,7 +86,18 @@
               <button type="button" class="secondary" data-search="start">
                 <i class="ti ti-search" aria-hidden="true"></i> 검색
               </button>
+              <button
+                id="use-current-location"
+                type="button"
+                class="secondary"
+                aria-describedby="current-location-note"
+              >
+                <i class="ti ti-current-location" aria-hidden="true"></i> 현위치
+              </button>
             </div>
+            <p id="current-location-note" class="field-note">
+              휴대폰에서는 HTTPS 주소로 접속한 뒤 위치 권한을 허용하세요.
+            </p>
             <p id="start-selected" class="selected-place">선택된 장소 없음</p>
             <div id="start-results" class="place-results" aria-live="polite"></div>
           </div>

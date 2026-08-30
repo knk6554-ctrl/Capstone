@@ -463,8 +463,12 @@ p {
 
 .search-row {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 0.65rem;
+}
+
+.place-search[data-kind="start"] .search-row {
+  grid-template-columns: minmax(0, 1fr) auto auto;
 }
 
 input[type="search"],
@@ -984,6 +988,10 @@ footer strong {
   .button-pair,
   .sensor-grid,
   .sensor-status {
+    grid-template-columns: 1fr;
+  }
+
+  .place-search[data-kind="start"] .search-row {
     grid-template-columns: 1fr;
   }
 

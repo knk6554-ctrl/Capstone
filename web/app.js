@@ -13,6 +13,7 @@ const state = {
 
 const elements = {
   systemStatus: document.querySelector("#system-status"),
+  useCurrentLocation: document.querySelector("#use-current-location"),
   createRoute: document.querySelector("#create-route"),
   routeMode: document.querySelector("#route-mode"),
   routeMessage: document.querySelector("#route-message"),
@@ -112,6 +113,7 @@ function bindEvents() {
       }
     });
   });
+  elements.useCurrentLocation.addEventListener("click", useCurrentLocation);
   elements.createRoute.addEventListener("click", createRoute);
   elements.startNavigation.addEventListener("click", startNavigation);
   elements.stopNavigation.addEventListener("click", stopNavigation);
@@ -121,6 +123,67 @@ function bindEvents() {
   elements.emergencyAck.addEventListener("click", acknowledgeEmergency);
   pollEmergency();
   setInterval(pollEmergency, 4000);
+}
+
+function locationErrorMessage(error) {
+  if (!window.isSecureContext) {
+    return "휴대폰 현위치는 HTTPS 주소에서만 사용할 수 있습니다. VS Code에서 8000번 포트를 전달한 HTTPS 주소로 접속하세요.";
+  }
+  if (error?.code === 1) {
+    return "위치 권한이 거부되었습니다. 휴대폰 브라우저의 사이트 설정에서 위치 권한을 허용하세요.";
+  }
+  if (error?.code === 2) {
+    return "현재 위치를 확인할 수 없습니다. 휴대폰 위치 서비스를 켜고 야외에서 다시 시도하세요.";
+  }
+  if (error?.code === 3) {
+    return "GPS 응답 시간이 초과되었습니다. 잠시 후 다시 시도하세요.";
+  }
+  return error?.message || "현재 위치를 가져오지 못했습니다.";
+}
+
+function useCurrentLocation() {
+  if (!window.isSecureContext || !navigator.geolocation) {
+    const message = locationErrorMessage();
+    document.querySelector("#start-selected").textContent = message;
+    setStatus("현위치 사용 불가", true);
+    return;
+  }
+
+  const buttonLabel = elements.useCurrentLocation.innerHTML;
+  elements.useCurrentLocation.disabled = true;
+  elements.useCurrentLocation.textContent = "GPS 확인 중…";
+  setStatus("현위치 확인 중");
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const accuracy = Math.round(position.coords.accuracy);
+      const currentPlace = {
+        id: "current-location",
+        name: "현위치",
+        address: `GPS 정확도 약 ${accuracy}m`,
+        roadAddress: "",
+        phone: "",
+        placeUrl: "",
+        coordinate: {
+          longitude: position.coords.longitude,
+          latitude: position.coords.latitude,
+        },
+      };
+      selectPlace("start", currentPlace);
+      updateUserMarker(currentPlace.coordinate);
+      setStatus("현위치 설정 완료");
+      elements.useCurrentLocation.disabled = false;
+      elements.useCurrentLocation.innerHTML = buttonLabel;
+    },
+    (error) => {
+      const message = locationErrorMessage(error);
+      document.querySelector("#start-selected").textContent = message;
+      setStatus("GPS 오류", true);
+      elements.useCurrentLocation.disabled = false;
+      elements.useCurrentLocation.innerHTML = buttonLabel;
+    },
+    { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
+  );
 }
 
 async function searchPlaces(kind) {
@@ -278,14 +341,16 @@ function renderRoute(route) {
 }
 
 function startNavigation() {
-  if (!state.route || !navigator.geolocation) {
-    elements.nextGuidance.textContent = "이 브라우저에서는 위치 기능을 사용할 수 없습니다.";
+  if (!state.route) return;
+  if (!window.isSecureContext || !navigator.geolocation) {
+    elements.nextGuidance.textContent = locationErrorMessage();
+    setStatus("현위치 사용 불가", true);
     return;
   }
   state.watchId = navigator.geolocation.watchPosition(
     updateLocation,
     (error) => {
-      elements.nextGuidance.textContent = `위치 오류: ${error.message}`;
+      elements.nextGuidance.textContent = locationErrorMessage(error);
       setStatus("GPS 오류", true);
     },
     { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 },
