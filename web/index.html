@@ -13,7 +13,7 @@
     />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2/dist/tabler-icons.min.css" />
-    <link rel="stylesheet" href="/static/styles.css?v=sidebar-v2" />
+    <link rel="stylesheet" href="/static/styles.css?v=gpsdebug" />
   </head>
   <body>
     <a class="skip-link" href="#main-content">본문으로 바로가기</a>
@@ -196,6 +196,16 @@
           <div id="next-guidance" class="guidance-card" aria-live="assertive">
             경로를 먼저 생성해 주세요.
           </div>
+
+          <!-- 야외 워킹 테스트용 GPS 상태 (안내 중에만 표시) -->
+          <dl id="gps-debug" class="gps-debug" hidden>
+            <div><dt>좌표</dt><dd id="gps-coord">–</dd></div>
+            <div><dt>정확도</dt><dd id="gps-accuracy">–</dd></div>
+            <div><dt>갱신</dt><dd id="gps-age">–</dd></div>
+            <div><dt>경로 이탈</dt><dd id="gps-offroute">–</dd></div>
+            <div><dt>수신 횟수</dt><dd id="gps-count">0</dd></div>
+          </dl>
+
           <ol id="directions" class="directions"></ol>
         </section>
 
@@ -279,6 +289,6 @@
       <strong>안전 및 접근성 안내</strong>
       <span>본 시스템은 프로토타입 연구용이며 흰지팡이 및 안내견 등 표준 보행 보조 수단을 보완하도록 설계되었습니다.</span>
     </footer>
-    <script src="/static/app.js?v=sidebar" defer></script>
+    <script src="/static/app.js?v=gpsdebug" defer></script>
   </body>
 </html>

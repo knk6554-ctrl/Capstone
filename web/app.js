@@ -9,6 +9,7 @@ const state = {
   route: null,
   watchId: null,
   hapticLogStarted: false,
+  gpsFixCount: 0,
 };
 
 const elements = {
@@ -31,6 +32,12 @@ const elements = {
   startNavigation: document.querySelector("#start-navigation"),
   stopNavigation: document.querySelector("#stop-navigation"),
   nextGuidance: document.querySelector("#next-guidance"),
+  gpsDebug: document.querySelector("#gps-debug"),
+  gpsCoord: document.querySelector("#gps-coord"),
+  gpsAccuracy: document.querySelector("#gps-accuracy"),
+  gpsAge: document.querySelector("#gps-age"),
+  gpsOffRoute: document.querySelector("#gps-offroute"),
+  gpsCount: document.querySelector("#gps-count"),
   hapticLog: document.querySelector("#haptic-log"),
   sensorStatus: document.querySelector("#sensor-status"),
   emergencyBanner: document.querySelector("#emergency-banner"),
@@ -529,6 +536,8 @@ function renderRoute(route) {
     elements.directions.appendChild(item);
   });
   elements.nextGuidance.textContent = "GPS 안내를 시작하면 다음 회전까지 거리를 표시합니다.";
+  elements.gpsDebug.hidden = true;
+  state.gpsFixCount = 0;
 }
 
 function startNavigation() {
@@ -538,10 +547,14 @@ function startNavigation() {
     setStatus("현위치 사용 불가", true);
     return;
   }
+  state.gpsFixCount = 0;
+  elements.gpsCount.textContent = "0";
+  elements.gpsDebug.hidden = false;
   state.watchId = navigator.geolocation.watchPosition(
     updateLocation,
     (error) => {
       elements.nextGuidance.textContent = locationErrorMessage(error);
+      elements.gpsOffRoute.textContent = `신호 오류 (${error.code})`;
       setStatus("GPS 오류", true);
     },
     { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 },
@@ -559,18 +572,39 @@ function stopNavigation() {
   setStatus("GPS 안내 중지");
 }
 
+function renderGpsDebug(position, result) {
+  const c = position.coords;
+  elements.gpsCoord.textContent = `${c.latitude.toFixed(6)}, ${c.longitude.toFixed(6)}`;
+  const acc = Math.round(c.accuracy);
+  elements.gpsAccuracy.textContent = `±${acc} m`;
+  elements.gpsAccuracy.dataset.level = acc <= 15 ? "good" : acc <= 30 ? "ok" : "poor";
+  const ageSec = Math.max(0, Math.round((Date.now() - position.timestamp) / 1000));
+  elements.gpsAge.textContent = ageSec < 2 ? "방금" : `${ageSec}초 전`;
+  if (result) {
+    const dist = Math.round(result.distanceFromRouteMeters ?? 0);
+    elements.gpsOffRoute.textContent = result.offRoute
+      ? `이탈 · 경로에서 ${dist} m`
+      : `경로 위 · ${dist} m`;
+    elements.gpsOffRoute.dataset.level = result.offRoute ? "poor" : "good";
+  }
+}
+
 async function updateLocation(position) {
   const location = {
     longitude: position.coords.longitude,
     latitude: position.coords.latitude,
     accuracy_meters: position.coords.accuracy,
   };
+  state.gpsFixCount += 1;
+  elements.gpsCount.textContent = String(state.gpsFixCount);
   updateUserMarker(location);
+  renderGpsDebug(position, null);
   try {
     const result = await api(`/api/navigation/${state.route.routeId}/location`, {
       method: "POST",
       body: JSON.stringify(location),
     });
+    renderGpsDebug(position, result);
     if (result.completed) {
       elements.nextGuidance.textContent = "목적지에 도착했습니다.";
       stopNavigation();

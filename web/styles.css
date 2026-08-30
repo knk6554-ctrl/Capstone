@@ -827,6 +827,42 @@ button:disabled {
   align-items: center;
 }
 
+/* 야외 워킹 테스트용 GPS 상태 판 */
+.gps-debug {
+  margin: 0.75rem 0 0;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-sm);
+  background: var(--system-inset-bg);
+  border: 1px dashed var(--glass-border-subtle);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.55rem 1.1rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+.gps-debug > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.gps-debug dt {
+  color: var(--system-tertiary);
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+}
+
+.gps-debug dd {
+  margin: 0;
+  color: var(--system-label);
+  font-weight: 600;
+}
+
+.gps-debug dd[data-level="good"] { color: var(--apple-green); }
+.gps-debug dd[data-level="ok"] { color: var(--amber-deep, #b25b00); }
+.gps-debug dd[data-level="poor"] { color: var(--danger, var(--apple-red)); }
+
 .directions {
   max-height: 320px;
   overflow-y: auto;
