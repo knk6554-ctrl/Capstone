@@ -103,7 +103,6 @@
 
 html {
   font-size: 16px;
-  scroll-behavior: smooth;
 }
 
 body {
@@ -191,9 +190,9 @@ p {
   flex-direction: column;
   gap: 1.75rem;
   padding: 1.6rem 1.25rem;
-  background: var(--system-card-bg);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  /* 고정 요소에 backdrop-filter를 쓰면 스크롤마다 뒤 화면을 다시 블러 처리해서
+     특히 휴대폰에서 스크롤이 버벅인다. 불투명 배경으로 간다. */
+  background: var(--system-card-solid);
   border-right: 1px solid var(--glass-border-subtle);
 }
 
@@ -324,8 +323,11 @@ p {
 .layout {
   position: relative;
   margin-left: 15rem;
-  /* 오른쪽에 고정된 지도·햅틱 패널(.context-column) 자리를 비워둔다 */
-  padding: 1.5rem calc(30rem + 3.25rem) 4rem 1.75rem;
+  padding: 1.5rem 1.75rem 4rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 30rem;
+  gap: 1.5rem;
+  align-items: start;
 }
 
 .glass-card {
@@ -401,17 +403,12 @@ p {
   max-width: 680px;
 }
 
-/* 지도 + 햅틱 피드: 뷰포트에 고정 → 스크롤해도 항상 경로 안내와 함께 보인다 */
+/* 지도 + 햅틱 피드: 스크롤을 따라오되(sticky) 페이지 끝에서는 본문과 함께 끝난다.
+   페이지 스크롤은 하나뿐 — 내부에 별도 스크롤 영역을 만들지 않는다. */
 .context-column {
-  position: fixed;
+  position: sticky;
   top: 1.5rem;
-  right: 1.75rem;
-  z-index: 40;
-  width: 30rem;
-  height: calc(100dvh - 3rem);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  align-content: start;
+  align-self: start;
 }
 
 .tab-panel {
@@ -864,8 +861,6 @@ button:disabled {
 .gps-debug dd[data-level="poor"] { color: var(--danger, var(--apple-red)); }
 
 .directions {
-  max-height: 320px;
-  overflow-y: auto;
   margin: 1.4rem 0 0;
   padding: 0;
   list-style: none;
@@ -1075,7 +1070,7 @@ footer {
   align-items: center;
   gap: 0.3rem;
   margin-left: 15rem;
-  padding: 1.75rem calc(30rem + 3.25rem) 1.75rem 2rem;
+  padding: 1.75rem 2rem;
   background: var(--system-card-bg);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
@@ -1133,6 +1128,7 @@ footer strong {
   .layout {
     margin-left: 0;
     padding: 1.25rem 1rem 4rem;
+    grid-template-columns: 1fr;
   }
 
   .emergency-banner {
@@ -1145,10 +1141,6 @@ footer strong {
 
   .context-column {
     position: static;
-    width: auto;
-    height: auto;
-    overflow: visible;
-    margin-top: 1.25rem;
   }
 
   .tab-content-column {
@@ -1195,6 +1187,17 @@ footer strong {
 
   .summary-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* 터치 기기(휴대폰·태블릿): 스크롤 중 backdrop-filter 재계산이 버벅임의 큰 원인.
+   유리 질감을 불투명 배경으로 대체해 스크롤을 매끄럽게 한다. */
+@media (hover: none) {
+  .glass-card,
+  footer {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: var(--system-card-solid);
   }
 }
 
