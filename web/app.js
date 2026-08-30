@@ -10,6 +10,7 @@ const state = {
   watchId: null,
   hapticLogStarted: false,
   gpsFixCount: 0,
+  accuracyCircle: null,
 };
 
 const elements = {
@@ -465,12 +466,30 @@ async function createRoute() {
   }
 }
 
+// 출발·도착을 서로 다른 색 핀으로, 현재 위치(파란 점)와도 확실히 구분되게.
+function pinImage(fillColor) {
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="40" viewBox="0 0 30 40">` +
+    `<path d="M15 1C7.3 1 1 7.3 1 15c0 10 14 24 14 24s14-14 14-24C29 7.3 22.7 1 15 1z" ` +
+    `fill="${fillColor}" stroke="#ffffff" stroke-width="2"/>` +
+    `<circle cx="15" cy="15" r="5" fill="#ffffff"/></svg>`;
+  return new window.kakao.maps.MarkerImage(
+    "data:image/svg+xml," + encodeURIComponent(svg),
+    new window.kakao.maps.Size(30, 40),
+    { offset: new window.kakao.maps.Point(15, 40) },
+  );
+}
+
 function drawRoute(route) {
   // 지도 SDK가 없으면 경로 요약/안내 텍스트만 표시하고 지도 그리기는 건너뛴다.
   if (!state.map || !window.kakao?.maps) return;
   if (state.routeLine) state.routeLine.setMap(null);
   state.markers.forEach((marker) => marker.setMap(null));
   state.markers = [];
+  if (state.accuracyCircle) {
+    state.accuracyCircle.setMap(null);
+    state.accuracyCircle = null;
+  }
 
   const path = route.path.map(
     (point) => new window.kakao.maps.LatLng(point.latitude, point.longitude),
@@ -484,10 +503,15 @@ function drawRoute(route) {
     strokeStyle: "solid",
   });
 
-  [route.start, route.destination].forEach((place) => {
+  [
+    { place: route.start, color: "#0b8f5f", title: "출발" },
+    { place: route.destination, color: "#ff3b30", title: "도착" },
+  ].forEach(({ place, color, title }) => {
     state.markers.push(
       new window.kakao.maps.Marker({
         map: state.map,
+        title,
+        image: pinImage(color),
         position: new window.kakao.maps.LatLng(
           place.coordinate.latitude,
           place.coordinate.longitude,
@@ -567,6 +591,10 @@ function startNavigation() {
 function stopNavigation() {
   if (state.watchId !== null) navigator.geolocation.clearWatch(state.watchId);
   state.watchId = null;
+  if (state.accuracyCircle) {
+    state.accuracyCircle.setMap(null);
+    state.accuracyCircle = null;
+  }
   elements.startNavigation.disabled = !state.route;
   elements.stopNavigation.disabled = true;
   setStatus("GPS 안내 중지");
@@ -630,14 +658,38 @@ async function updateLocation(position) {
 function updateUserMarker(location) {
   if (!state.map || !window.kakao?.maps) return;
   const position = new window.kakao.maps.LatLng(location.latitude, location.longitude);
+
+  // 현재 위치는 핀이 아니라 "파란 점"(구글 지도 스타일)으로 — 출발·도착 핀과 확실히 구분.
   if (!state.userMarker) {
-    state.userMarker = new window.kakao.maps.Marker({
+    state.userMarker = new window.kakao.maps.CustomOverlay({
       map: state.map,
       position,
-      zIndex: 10,
+      content:
+        '<div class="map-user-dot" role="img" aria-label="현재 위치"><span></span></div>',
+      xAnchor: 0.5,
+      yAnchor: 0.5,
+      zIndex: 20,
     });
   } else {
     state.userMarker.setPosition(position);
+  }
+
+  // GPS 정확도 반경 원 (accuracy_meters 가 있을 때만)
+  const accuracy = Number(location.accuracy_meters);
+  if (Number.isFinite(accuracy) && accuracy > 0) {
+    if (!state.accuracyCircle) {
+      state.accuracyCircle = new window.kakao.maps.Circle({
+        map: state.map,
+        strokeWeight: 1,
+        strokeColor: "#007aff",
+        strokeOpacity: 0.35,
+        strokeStyle: "solid",
+        fillColor: "#007aff",
+        fillOpacity: 0.1,
+      });
+    }
+    state.accuracyCircle.setPosition(position);
+    state.accuracyCircle.setRadius(accuracy);
   }
 }
 
