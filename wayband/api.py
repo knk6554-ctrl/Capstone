@@ -65,6 +65,8 @@ class RouteBody(BaseModel):
     start: PlaceBody
     destination: PlaceBody
     route_mode: Literal["BROAD_FIRST", "SHORTEST", "ACCESSIBLE"] = "ACCESSIBLE"
+    # 참이면 반대편 모드 경로를 함께 조회해 두 경로를 비교한 요약을 응답에 넣는다.
+    compare: bool = False
 
 
 class LocationBody(BaseModel):
@@ -191,12 +193,14 @@ def search_places(
 
 @app.post("/api/routes", status_code=201)
 def create_route(request: Request, body: RouteBody) -> dict[str, object]:
-    route = _service(request).create_route(
-        body.start.to_domain(),
-        body.destination.to_domain(),
-        body.route_mode,
-    )
-    return route.to_public_dict()
+    service = _service(request)
+    start = body.start.to_domain()
+    destination = body.destination.to_domain()
+    route = service.create_route(start, destination, body.route_mode)
+    payload = route.to_public_dict()
+    if body.compare:
+        payload["comparison"] = service.compare_route(route, start, destination)
+    return payload
 
 
 @app.get("/api/routes/{route_id}")

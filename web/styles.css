@@ -654,6 +654,45 @@ button:disabled {
   letter-spacing: 0;
 }
 
+.route-hazards,
+.route-comparison {
+  margin-top: 0.5rem;
+  font-size: 0.86rem;
+  line-height: 1.55;
+  color: var(--system-secondary);
+}
+
+.route-comparison {
+  color: var(--apple-blue);
+  font-weight: 600;
+}
+
+.route-warning {
+  margin-top: 0.6rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 149, 0, 0.14);
+  border: 1px solid rgba(255, 149, 0, 0.45);
+  color: var(--amber-deep, #b25b00);
+  font-size: 0.86rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.directions li.is-stairs {
+  background: rgba(255, 149, 0, 0.12);
+}
+
+.directions li.is-stairs::before {
+  background: rgba(255, 149, 0, 0.9);
+  color: #fff;
+}
+
+.directions li.is-crosswalk::before {
+  background: rgba(10, 132, 255, 0.85);
+  color: #fff;
+}
+
 /* ==========================================================================
    Apple Health / Fitness Metric Summary Cards
    ========================================================================== */

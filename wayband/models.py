@@ -14,8 +14,15 @@ class Maneuver(str, Enum):
     RIGHT = "RIGHT"
     UTURN = "UTURN"
     CROSSWALK = "CROSSWALK"
+    STAIRS = "STAIRS"
     ARRIVE = "ARRIVE"
     OTHER = "OTHER"
+
+
+# 시각장애인 보행에서 특히 주의해야 하는 구간을 안내 문구에서 찾아내기 위한 키워드.
+# 계단뿐 아니라 계단이 포함되기 쉬운 육교·지하보도도 함께 본다.
+STAIR_KEYWORDS = ("계단", "층계", "육교", "지하보도", "지하도")
+CROSSWALK_KEYWORDS = ("횡단보도", "건널목")
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,6 +114,23 @@ class RoutePlan:
     steps: tuple[RouteStep, ...]
     path: tuple[Coordinate, ...]
 
+    def hazard_counts(self) -> dict[str, int]:
+        """경로 안내 문구에서 계단·횡단보도 구간 수를 센다.
+
+        방향 분류(maneuver)가 회전으로 잡힌 단계에도 '계단' 문구가 섞일 수 있어
+        분류 결과가 아니라 원문 guidance를 직접 훑는다.
+        """
+
+        stairs = 0
+        crosswalks = 0
+        for step in self.steps:
+            text = step.guidance
+            if any(keyword in text for keyword in STAIR_KEYWORDS):
+                stairs += 1
+            if any(keyword in text for keyword in CROSSWALK_KEYWORDS):
+                crosswalks += 1
+        return {"stairs": stairs, "crosswalks": crosswalks}
+
     def to_public_dict(self) -> dict[str, Any]:
         return {
             "routeId": self.route_id,
@@ -116,6 +140,7 @@ class RoutePlan:
             "totalTimeSeconds": self.total_time_seconds,
             "landingUrl": self.landing_url,
             "routeMode": self.route_mode,
+            "hazards": self.hazard_counts(),
             "steps": [step.to_public_dict() for step in self.steps],
             "path": [point.to_public_dict() for point in self.path],
         }

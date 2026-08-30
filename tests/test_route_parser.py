@@ -11,6 +11,11 @@ class GuidanceTests(unittest.TestCase):
         self.assertEqual(classify_guidance("유턴하세요"), Maneuver.UTURN)
         self.assertEqual(classify_guidance("목적지 도착"), Maneuver.ARRIVE)
 
+    def test_stairs_and_crosswalk(self):
+        self.assertEqual(classify_guidance("계단을 이용하여 내려가세요"), Maneuver.STAIRS)
+        self.assertEqual(classify_guidance("육교를 건너세요"), Maneuver.STAIRS)
+        self.assertEqual(classify_guidance("횡단보도를 건너세요"), Maneuver.CROSSWALK)
+
 
 class ParserTests(unittest.TestCase):
     def test_parses_official_walking_shape_and_deduplicates_boundary(self):

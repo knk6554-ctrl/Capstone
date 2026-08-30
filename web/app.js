@@ -19,6 +19,9 @@ const elements = {
   createRoute: document.querySelector("#create-route"),
   routeMode: document.querySelector("#route-mode"),
   routeMessage: document.querySelector("#route-message"),
+  routeSafetyWarning: document.querySelector("#route-safety-warning"),
+  routeHazards: document.querySelector("#route-hazards"),
+  routeComparison: document.querySelector("#route-comparison"),
   routeSummary: document.querySelector("#route-summary"),
   summaryDistance: document.querySelector("#summary-distance"),
   summaryTime: document.querySelector("#summary-time"),
@@ -306,9 +309,98 @@ function placeRequest(place) {
   };
 }
 
+const ROUTE_MODE_LABELS = {
+  ACCESSIBLE: "안전 경로",
+  SHORTEST: "빠른 경로",
+  BROAD_FIRST: "넓은 길 경로",
+};
+
+function resetRouteExtras() {
+  for (const el of [
+    elements.routeSafetyWarning,
+    elements.routeHazards,
+    elements.routeComparison,
+  ]) {
+    el.hidden = true;
+    el.textContent = "";
+  }
+}
+
+function renderHazards(route) {
+  const hazards = route.hazards || { stairs: 0, crosswalks: 0 };
+  const parts = [];
+  if (hazards.stairs) parts.push(`계단 ${hazards.stairs}곳`);
+  if (hazards.crosswalks) parts.push(`횡단보도 ${hazards.crosswalks}곳`);
+  elements.routeHazards.textContent = parts.length
+    ? `이 경로: ${parts.join(" · ")}`
+    : "이 경로에는 계단·횡단보도 구간이 없습니다.";
+  elements.routeHazards.hidden = false;
+
+  // 안전 경로를 골랐는데도 계단이 남아 있으면 분명하게 경고한다.
+  if (route.routeMode === "ACCESSIBLE" && hazards.stairs > 0) {
+    elements.routeSafetyWarning.textContent =
+      `⚠️ 안전 경로에도 계단 ${hazards.stairs}곳이 포함되어 있습니다. ` +
+      `안내 중 진동으로 알려드립니다.`;
+    elements.routeSafetyWarning.hidden = false;
+  }
+}
+
+// 거리·시간 차이를 "320m 더 길고 약 3분 더 걸리는" 같은 한 구절로 만든다.
+// sign > 0 이면 현재 경로가 더 길다/느리다(비용), < 0 이면 더 짧다/빠르다(이득).
+function describeDelta(distDelta, minDelta) {
+  const bits = [];
+  if (distDelta > 0) bits.push(`${distDelta}m 더 길`);
+  else if (distDelta < 0) bits.push(`${-distDelta}m 더 짧`);
+  if (minDelta > 0) bits.push(distDelta > 0 ? "약 " + minDelta + "분 더 걸리" : `약 ${minDelta}분 더 느리`);
+  else if (minDelta < 0) bits.push(`약 ${-minDelta}분 더 빠르`);
+  if (!bits.length) return null;
+  return bits.join("고 ") + "는";
+}
+
+function renderComparison(route) {
+  const c = route.comparison;
+  if (!c) return;
+  const distDelta = Math.round(c.distanceDeltaMeters);
+  const minDelta = Math.round(c.timeDeltaSeconds / 60);
+  const primaryLabel = ROUTE_MODE_LABELS[route.routeMode] || route.routeMode;
+  const otherLabel = c.label || ROUTE_MODE_LABELS[c.mode] || c.mode;
+
+  // 양수 = 반대편(otherLabel) 경로가 그 위험 구간을 더 지난다
+  const avoided = [];
+  if (c.stairsDelta > 0) avoided.push(`계단 ${c.stairsDelta}곳`);
+  if (c.crosswalksDelta > 0) avoided.push(`횡단보도 ${c.crosswalksDelta}곳`);
+  const extra = [];
+  if (c.stairsDelta < 0) extra.push(`계단 ${-c.stairsDelta}곳`);
+  if (c.crosswalksDelta < 0) extra.push(`횡단보도 ${-c.crosswalksDelta}곳`);
+
+  let message;
+  if (route.routeMode === "ACCESSIBLE" && avoided.length) {
+    const delta = describeDelta(distDelta, minDelta);
+    const clause = delta
+      ? `${otherLabel}보다 ${delta} 대신`
+      : `${otherLabel}와 거리는 비슷하면서`;
+    message = `현재 ${primaryLabel}는 ${clause} ${avoided.join("·")}을 피합니다.`;
+  } else if (route.routeMode === "SHORTEST" && extra.length) {
+    const delta = describeDelta(-distDelta, -minDelta);
+    const clause = delta ? `${otherLabel}보다 ${delta} 대신` : "";
+    message = `현재 ${primaryLabel}는 ${clause} ${extra.join(
+      "·",
+    )}을 더 지납니다. 안전이 우선이면 안전 경로를 선택하세요.`;
+  } else {
+    message = `${otherLabel}: ${c.totalDistanceMeters.toLocaleString()}m · 약 ${Math.max(
+      1,
+      Math.round(c.totalTimeSeconds / 60),
+    )}분 · 계단 ${c.hazards.stairs}곳 · 횡단보도 ${c.hazards.crosswalks}곳`;
+  }
+  elements.routeComparison.textContent = message;
+  elements.routeComparison.hidden = false;
+}
+
 async function createRoute() {
   elements.createRoute.disabled = true;
-  elements.routeMessage.textContent = "편안한 보행 경로를 찾고 있습니다…";
+  resetRouteExtras();
+  const modeLabel = ROUTE_MODE_LABELS[elements.routeMode.value] || "보행";
+  elements.routeMessage.textContent = `${modeLabel}를 찾고 있습니다…`;
   try {
     const route = await api("/api/routes", {
       method: "POST",
@@ -316,13 +408,16 @@ async function createRoute() {
         start: placeRequest(state.selected.start),
         destination: placeRequest(state.selected.destination),
         route_mode: elements.routeMode.value,
+        compare: true,
       }),
     });
     state.route = route;
     drawRoute(route);
     renderRoute(route);
+    renderHazards(route);
+    renderComparison(route);
     elements.startNavigation.disabled = false;
-    elements.routeMessage.textContent = "경로를 만들었습니다.";
+    elements.routeMessage.textContent = `${modeLabel}를 만들었습니다.`;
     setStatus("경로 준비 완료");
   } catch (error) {
     elements.routeMessage.textContent = error.message;
@@ -374,6 +469,18 @@ function formatDuration(seconds) {
   return `${Math.floor(minutes / 60)}시간 ${minutes % 60}분`;
 }
 
+const MANEUVER_LABELS = {
+  START: "출발",
+  STRAIGHT: "직진",
+  LEFT: "좌회전",
+  RIGHT: "우회전",
+  UTURN: "유턴",
+  CROSSWALK: "🚸 횡단보도",
+  STAIRS: "⚠️ 계단",
+  ARRIVE: "도착",
+  OTHER: "이동",
+};
+
 function renderRoute(route) {
   elements.routeSummary.hidden = false;
   elements.summaryDistance.textContent = `${route.totalDistanceMeters.toLocaleString()} m`;
@@ -383,8 +490,10 @@ function renderRoute(route) {
   elements.directions.replaceChildren();
   route.steps.forEach((step) => {
     const item = document.createElement("li");
+    if (step.maneuver === "STAIRS") item.className = "is-stairs";
+    else if (step.maneuver === "CROSSWALK") item.className = "is-crosswalk";
     const maneuver = document.createElement("strong");
-    maneuver.textContent = `[${step.maneuver}] `;
+    maneuver.textContent = `[${MANEUVER_LABELS[step.maneuver] || step.maneuver}] `;
     item.append(maneuver, step.guidance || `${step.distanceMeters}m 이동`);
     elements.directions.appendChild(item);
   });
@@ -437,7 +546,13 @@ async function updateLocation(position) {
     } else {
       const next = result.nextInstruction;
       const routeState = result.offRoute ? "경로 이탈 감지 · " : "";
-      elements.nextGuidance.textContent = `${routeState}${Math.round(
+      const hazardTag =
+        next.maneuver === "STAIRS"
+          ? "⚠️ 계단 · "
+          : next.maneuver === "CROSSWALK"
+            ? "🚸 횡단보도 · "
+            : "";
+      elements.nextGuidance.textContent = `${routeState}${hazardTag}${Math.round(
         next.distanceMeters,
       )}m 후 ${next.guidance}`;
     }

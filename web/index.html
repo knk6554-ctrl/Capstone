@@ -13,7 +13,7 @@
     />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2/dist/tabler-icons.min.css" />
-    <link rel="stylesheet" href="/static/styles.css?v=apple-v5" />
+    <link rel="stylesheet" href="/static/styles.css?v=apple-v6" />
   </head>
   <body>
     <a class="skip-link" href="#main-content">본문으로 바로가기</a>
@@ -120,18 +120,24 @@
             <div id="destination-results" class="place-results" aria-live="polite"></div>
           </div>
 
-          <label for="route-mode">경로 탐색 옵션</label>
+          <label for="route-mode">경로 방식</label>
           <select id="route-mode">
-            <option value="ACCESSIBLE" selected>편안한 길 우선 (계단 최소화)</option>
-            <option value="BROAD_FIRST">넓은 길 우선 (인도 중심)</option>
-            <option value="SHORTEST">최단 경로</option>
+            <option value="ACCESSIBLE" selected>안전 경로 · 계단·급경사 최소화 (권장)</option>
+            <option value="SHORTEST">빠른 경로 · 최단 거리</option>
           </select>
-          <p class="field-note">※ 편안한 길 옵션은 계단을 줄이지만 완전한 무장애 경로를 보장하지는 않습니다.</p>
+          <p class="field-note">
+            기본은 계단·급경사를 최대한 피하는 안전 경로입니다. 빠른 이동이
+            필요하면 최단 거리 경로를 선택할 수 있습니다. 안전 경로도 턱·공사
+            구간·점자블록까지 검증된 완전한 무장애 경로는 아닙니다.
+          </p>
 
           <button id="create-route" type="button" class="primary" disabled>
             <i class="ti ti-route" aria-hidden="true"></i> 경로 생성
           </button>
           <p id="route-message" class="message" role="status" aria-live="polite"></p>
+          <p id="route-safety-warning" class="route-warning" role="alert" hidden></p>
+          <p id="route-hazards" class="route-hazards" aria-live="polite" hidden></p>
+          <p id="route-comparison" class="route-comparison" aria-live="polite" hidden></p>
 
           <!-- Apple Health Style Summary Metric Cards -->
           <div id="route-summary" class="summary-grid" hidden>
@@ -230,6 +236,6 @@
       <strong>안전 및 접근성 안내</strong>
       <span>본 시스템은 프로토타입 연구용이며 흰지팡이 및 안내견 등 표준 보행 보조 수단을 보완하도록 설계되었습니다.</span>
     </footer>
-    <script src="/static/app.js?v=curloc-lock" defer></script>
+    <script src="/static/app.js?v=safe-route3" defer></script>
   </body>
 </html>

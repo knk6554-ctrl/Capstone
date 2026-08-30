@@ -6,7 +6,15 @@ from collections.abc import Mapping, Sequence
 from math import atan2, cos, degrees, radians, sin
 from typing import Any
 
-from .models import Coordinate, Maneuver, Place, RoutePlan, RouteStep
+from .models import (
+    CROSSWALK_KEYWORDS,
+    STAIR_KEYWORDS,
+    Coordinate,
+    Maneuver,
+    Place,
+    RoutePlan,
+    RouteStep,
+)
 
 
 def classify_guidance(guidance: str) -> Maneuver:
@@ -21,7 +29,9 @@ def classify_guidance(guidance: str) -> Maneuver:
         return Maneuver.LEFT
     if any(keyword in text for keyword in ("우회전", "오른쪽", "우측")):
         return Maneuver.RIGHT
-    if "횡단보도" in text:
+    if any(keyword in text for keyword in STAIR_KEYWORDS):
+        return Maneuver.STAIRS
+    if any(keyword in text for keyword in CROSSWALK_KEYWORDS):
         return Maneuver.CROSSWALK
     if any(keyword in text for keyword in ("직진", "계속 이동", "따라 이동")):
         return Maneuver.STRAIGHT

@@ -86,11 +86,17 @@ class NavigationEvent:
     step_index: int
 
 
+# 좌/우/유턴은 25m 준비 진동이 있지만, 횡단보도·계단은 근접 시 한 번만 울린다.
+_NO_PREPARE_MANEUVERS = frozenset({Maneuver.CROSSWALK, Maneuver.STAIRS})
+
+
 def _events_for(route: RoutePlan) -> tuple[NavigationEvent, ...]:
     haptic_maneuvers = {
         Maneuver.LEFT,
         Maneuver.RIGHT,
         Maneuver.UTURN,
+        Maneuver.CROSSWALK,
+        Maneuver.STAIRS,
     }
     events = [
         NavigationEvent(
@@ -133,6 +139,28 @@ def _turn_command(event: NavigationEvent, *, prepare: bool) -> HapticCommand:
             pulse_count=2,
             pulse_on_ms=700,
             pulse_off_ms=250,
+        )
+    if event.maneuver is Maneuver.CROSSWALK:
+        return HapticCommand(
+            target=HapticTarget.BOTH_WRISTS,
+            pattern=HapticPattern.CROSSWALK,
+            source="NAVIGATION",
+            message=event.guidance or "횡단보도가 있습니다.",
+            intensity=0.8,
+            pulse_count=2,
+            pulse_on_ms=300,
+            pulse_off_ms=220,
+        )
+    if event.maneuver is Maneuver.STAIRS:
+        return HapticCommand(
+            target=HapticTarget.BOTH_WRISTS,
+            pattern=HapticPattern.STAIRS,
+            source="NAVIGATION",
+            message=event.guidance or "계단이 있습니다. 주의하세요.",
+            intensity=0.85,
+            pulse_count=3,
+            pulse_on_ms=250,
+            pulse_off_ms=150,
         )
     if event.maneuver is Maneuver.UTURN and not prepare:
         pattern = HapticPattern.UTURN_NOW
@@ -230,6 +258,7 @@ class NavigationSession:
             if (
                 distance_to_event <= self.prepare_distance_meters
                 and self._event_cursor not in self._prepared_event_indices
+                and current_event.maneuver not in _NO_PREPARE_MANEUVERS
             ):
                 commands.append(_turn_command(current_event, prepare=True))
                 self._prepared_event_indices.add(self._event_cursor)
