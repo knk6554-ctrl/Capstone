@@ -128,8 +128,39 @@ function bindEvents() {
 
   elements.emergencyTrigger.addEventListener("click", triggerEmergency);
   elements.emergencyAck.addEventListener("click", acknowledgeEmergency);
+  bindHelpHints();
   pollEmergency();
   setInterval(pollEmergency, 4000);
+}
+
+// 회색 안내 문구를 ? 아이콘 뒤로 접어두고, 호버(데스크톱) 또는 클릭(터치)으로 펼친다.
+function bindHelpHints() {
+  const hints = [...document.querySelectorAll(".help-hint")];
+  const closeAll = (except) => {
+    for (const hint of hints) {
+      if (hint === except) continue;
+      hint.classList.remove("is-open");
+      hint
+        .querySelector(".help-hint__trigger")
+        ?.setAttribute("aria-expanded", "false");
+    }
+  };
+  for (const hint of hints) {
+    const trigger = hint.querySelector(".help-hint__trigger");
+    if (!trigger) continue;
+    trigger.addEventListener("click", (event) => {
+      event.preventDefault();
+      const open = hint.classList.toggle("is-open");
+      trigger.setAttribute("aria-expanded", open ? "true" : "false");
+      if (open) closeAll(hint);
+    });
+  }
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest(".help-hint")) closeAll();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeAll();
+  });
 }
 
 function locationErrorMessage(error) {

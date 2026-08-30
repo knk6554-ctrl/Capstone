@@ -13,7 +13,7 @@
     />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2/dist/tabler-icons.min.css" />
-    <link rel="stylesheet" href="/static/styles.css?v=apple-v6" />
+    <link rel="stylesheet" href="/static/styles.css?v=sidebar-v2" />
   </head>
   <body>
     <a class="skip-link" href="#main-content">본문으로 바로가기</a>
@@ -22,15 +22,25 @@
     <div class="blob blob-amber" aria-hidden="true"></div>
     <div class="blob blob-teal" aria-hidden="true"></div>
 
-    <!-- Floating Navigation Header Bar -->
-    <header class="hero">
-      <div class="brand-group">
+    <!-- 좌측 고정 사이드바: 브랜드 + 상태 + 화면 전환 탭 -->
+    <nav class="sidebar" aria-label="주 메뉴">
+      <div class="sidebar__top">
         <img src="/static/assets/logo.png" alt="WAYBAND" class="logo" />
+        <div id="system-status" class="status-pill" role="status" aria-live="polite">
+          시스템 준비 중
+        </div>
       </div>
-      <div id="system-status" class="status-pill" role="status" aria-live="polite">
-        시스템 준비 중
+      <div class="tab-rail" role="tablist" aria-label="화면 전환">
+        <button type="button" class="tab-button is-active" data-tab="kakao" title="경로 안내">
+          <i class="ti ti-map-pin" aria-hidden="true"></i>
+          <span class="tab-label">경로</span>
+        </button>
+        <button type="button" class="tab-button" data-tab="sensor" title="센서 및 시뮬레이터">
+          <i class="ti ti-activity" aria-hidden="true"></i>
+          <span class="tab-label">센서</span>
+        </button>
       </div>
-    </header>
+    </nav>
 
     <!-- Dynamic Island Alert Banner -->
     <div
@@ -50,18 +60,6 @@
 
     <!-- Main Workspace Layout -->
     <main id="main-content" class="layout">
-      <!-- iOS Segmented Tab Dock -->
-      <aside class="tab-rail" aria-label="화면 전환">
-        <button type="button" class="tab-button is-active" data-tab="kakao" title="경로 안내">
-          <i class="ti ti-map-pin" aria-hidden="true"></i>
-          <span class="tab-label">경로</span>
-        </button>
-        <button type="button" class="tab-button" data-tab="sensor" title="센서 및 시뮬레이터">
-          <i class="ti ti-activity" aria-hidden="true"></i>
-          <span class="tab-label">센서</span>
-        </button>
-      </aside>
-
       <!-- Primary Content Column -->
       <div class="tab-content-column">
         <!-- 카카오 자동 경로 + 실시간 안내 패널 -->
@@ -74,7 +72,26 @@
           </div>
 
           <div class="place-search" data-kind="start">
-            <label for="start-query">출발지</label>
+            <label for="start-query"
+              >출발지<span class="help-hint">
+                <button
+                  type="button"
+                  class="help-hint__trigger"
+                  aria-expanded="false"
+                  aria-describedby="current-location-note"
+                  aria-label="출발지 현위치 사용 도움말"
+                >
+                  ?
+                </button>
+                <span
+                  class="help-hint__bubble"
+                  id="current-location-note"
+                  role="tooltip"
+                  >휴대폰에서는 HTTPS 주소로 접속한 뒤 위치 권한을 허용해야
+                  “현위치”를 출발지로 쓸 수 있습니다.</span
+                >
+              </span></label
+            >
             <div class="search-row">
               <input
                 id="start-query"
@@ -95,9 +112,6 @@
                 <i class="ti ti-current-location" aria-hidden="true"></i> 현위치
               </button>
             </div>
-            <p id="current-location-note" class="field-note">
-              휴대폰에서는 HTTPS 주소로 접속한 뒤 위치 권한을 허용하세요.
-            </p>
             <p id="start-selected" class="selected-place">선택된 장소 없음</p>
             <div id="start-results" class="place-results" aria-live="polite"></div>
           </div>
@@ -120,16 +134,29 @@
             <div id="destination-results" class="place-results" aria-live="polite"></div>
           </div>
 
-          <label for="route-mode">경로 방식</label>
+          <label for="route-mode"
+            >경로 방식<span class="help-hint">
+              <button
+                type="button"
+                class="help-hint__trigger"
+                aria-expanded="false"
+                aria-describedby="route-mode-note"
+                aria-label="경로 방식 도움말"
+              >
+                ?
+              </button>
+              <span class="help-hint__bubble" id="route-mode-note" role="tooltip"
+                >기본은 계단·급경사를 최대한 피하는 안전 경로입니다. 빠른 이동이
+                필요하면 최단 거리 경로를 선택할 수 있습니다. 안전 경로도
+                턱·공사 구간·점자블록까지 검증된 완전한 무장애 경로는
+                아닙니다.</span
+              >
+            </span></label
+          >
           <select id="route-mode">
             <option value="ACCESSIBLE" selected>안전 경로 · 계단·급경사 최소화 (권장)</option>
             <option value="SHORTEST">빠른 경로 · 최단 거리</option>
           </select>
-          <p class="field-note">
-            기본은 계단·급경사를 최대한 피하는 안전 경로입니다. 빠른 이동이
-            필요하면 최단 거리 경로를 선택할 수 있습니다. 안전 경로도 턱·공사
-            구간·점자블록까지 검증된 완전한 무장애 경로는 아닙니다.
-          </p>
 
           <button id="create-route" type="button" class="primary" disabled>
             <i class="ti ti-route" aria-hidden="true"></i> 경로 생성
@@ -192,10 +219,26 @@
           <div id="sensor-status" class="sensor-status" aria-live="polite"></div>
 
           <div class="emergency-simulator">
-            <h3>비상 호출 스위치 (하드웨어 시뮬레이터)</h3>
-            <p class="field-note">
-              시각장애인 착용 벨트의 비상 버튼을 시뮬레이션합니다. 작동 시 보호자 화면에 즉각 위험 배너가 표시됩니다.
-            </p>
+            <h3>
+              비상 호출 스위치 (하드웨어 시뮬레이터)<span class="help-hint">
+                <button
+                  type="button"
+                  class="help-hint__trigger"
+                  aria-expanded="false"
+                  aria-describedby="emergency-sim-note"
+                  aria-label="비상 호출 스위치 도움말"
+                >
+                  ?
+                </button>
+                <span
+                  class="help-hint__bubble"
+                  id="emergency-sim-note"
+                  role="tooltip"
+                  >시각장애인 착용 벨트의 비상 버튼을 시뮬레이션합니다. 작동 시
+                  보호자 화면에 즉각 위험 배너가 표시됩니다.</span
+                >
+              </span>
+            </h3>
             <button id="emergency-trigger" type="button" class="danger-button">
               <i class="ti ti-alert-triangle" aria-hidden="true"></i> 긴급 비상 신호 전송
             </button>
@@ -236,6 +279,6 @@
       <strong>안전 및 접근성 안내</strong>
       <span>본 시스템은 프로토타입 연구용이며 흰지팡이 및 안내견 등 표준 보행 보조 수단을 보완하도록 설계되었습니다.</span>
     </footer>
-    <script src="/static/app.js?v=safe-route3" defer></script>
+    <script src="/static/app.js?v=sidebar" defer></script>
   </body>
 </html>
