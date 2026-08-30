@@ -118,10 +118,13 @@ body {
 .blob {
   position: fixed;
   border-radius: 50%;
-  filter: blur(100px);
+  filter: blur(80px);
   z-index: 0;
   pointer-events: none;
-  opacity: 0.55;
+  opacity: 0.5;
+  /* Promote to GPU compositor layer — prevents full-viewport repaint on scroll */
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 .blob-amber {
@@ -185,11 +188,13 @@ p {
   align-items: center;
   gap: 1.5rem;
   background: var(--system-card-bg);
-  backdrop-filter: blur(30px) saturate(200%);
-  -webkit-backdrop-filter: blur(30px) saturate(200%);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-pill);
   box-shadow: var(--glass-shadow);
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 .logo {
@@ -325,11 +330,11 @@ p {
   padding: clamp(1.4rem, 3.2vw, 2rem);
   border-radius: var(--radius-lg);
   background: var(--system-card-bg);
-  backdrop-filter: blur(30px) saturate(200%);
-  -webkit-backdrop-filter: blur(30px) saturate(200%);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow);
-  transition: box-shadow 0.25s ease, transform 0.25s ease;
+  transition: box-shadow 0.3s ease;
 }
 
 .glass-card:hover {
@@ -349,10 +354,12 @@ p {
   padding: 0.5rem;
   border-radius: var(--radius-lg);
   background: var(--system-card-bg);
-  backdrop-filter: blur(30px) saturate(200%);
-  -webkit-backdrop-filter: blur(30px) saturate(200%);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow);
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 .tab-button {
@@ -652,12 +659,11 @@ button:disabled {
   border: 1px solid var(--glass-border-subtle);
   border-radius: var(--radius-md);
   text-align: center;
-  transition: transform 0.2s ease, background 0.2s ease;
+  transition: background 0.2s ease;
 }
 
 .summary-grid article:hover {
   background: var(--system-card-solid);
-  transform: translateY(-2px);
 }
 
 .summary-grid span {
@@ -918,8 +924,8 @@ footer {
   gap: 0.3rem;
   padding: 1.75rem 2rem;
   background: var(--system-card-bg);
-  backdrop-filter: blur(30px) saturate(200%);
-  -webkit-backdrop-filter: blur(30px) saturate(200%);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   border-top: 1px solid var(--glass-border-subtle);
   color: var(--system-secondary);
   font-size: 0.86rem;
@@ -983,5 +989,13 @@ footer strong {
 
   .summary-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
