@@ -487,6 +487,14 @@ select {
   transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+input[type="search"].is-locked {
+  color: var(--apple-blue);
+  font-weight: 600;
+  background: var(--apple-blue-subtle, var(--system-inset-bg));
+  border-color: var(--apple-blue);
+  cursor: default;
+}
+
 input[type="search"]:focus,
 input[type="number"]:focus,
 select:focus {

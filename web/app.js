@@ -14,6 +14,8 @@ const state = {
 const elements = {
   systemStatus: document.querySelector("#system-status"),
   useCurrentLocation: document.querySelector("#use-current-location"),
+  startQuery: document.querySelector("#start-query"),
+  startSearchButton: document.querySelector('[data-search="start"]'),
   createRoute: document.querySelector("#create-route"),
   routeMode: document.querySelector("#route-mode"),
   routeMessage: document.querySelector("#route-message"),
@@ -143,7 +145,45 @@ function locationErrorMessage(error) {
   return error?.message || "현재 위치를 가져오지 못했습니다.";
 }
 
+// 현위치 잠금 상태에서는 출발지 검색 UI를 잠가서, "검색 결과가 없습니다"
+// 같은 혼동을 없애고 GPS 좌표가 출발지로 고정돼 있음을 분명히 보여준다.
+const CURRENT_LOCATION_LABEL = "📍 현재 위치 (GPS)";
+
+function lockStartToCurrentLocation() {
+  elements.startQuery.value = CURRENT_LOCATION_LABEL;
+  elements.startQuery.readOnly = true;
+  elements.startQuery.classList.add("is-locked");
+  if (elements.startSearchButton) elements.startSearchButton.disabled = true;
+  elements.useCurrentLocation.dataset.active = "true";
+  elements.useCurrentLocation.innerHTML =
+    '<i class="ti ti-x" aria-hidden="true"></i> 현위치 해제';
+}
+
+function unlockStart() {
+  elements.startQuery.readOnly = false;
+  elements.startQuery.classList.remove("is-locked");
+  elements.startQuery.value = "";
+  if (elements.startSearchButton) elements.startSearchButton.disabled = false;
+  delete elements.useCurrentLocation.dataset.active;
+  elements.useCurrentLocation.innerHTML =
+    '<i class="ti ti-current-location" aria-hidden="true"></i> 현위치';
+  if (state.selected.start && state.selected.start.id === "current-location") {
+    state.selected.start = null;
+    const selected = document.querySelector("#start-selected");
+    selected.textContent = "선택된 장소 없음";
+    selected.classList.remove("is-selected");
+    elements.createRoute.disabled = true;
+  }
+  setStatus("현위치 해제됨");
+}
+
 function useCurrentLocation() {
+  // 이미 현위치가 잡혀 있으면 토글로 해제
+  if (elements.useCurrentLocation.dataset.active === "true") {
+    unlockStart();
+    return;
+  }
+
   if (!window.isSecureContext || !navigator.geolocation) {
     const message = locationErrorMessage();
     document.querySelector("#start-selected").textContent = message;
@@ -151,7 +191,6 @@ function useCurrentLocation() {
     return;
   }
 
-  const buttonLabel = elements.useCurrentLocation.innerHTML;
   elements.useCurrentLocation.disabled = true;
   elements.useCurrentLocation.textContent = "GPS 확인 중…";
   setStatus("현위치 확인 중");
@@ -171,25 +210,28 @@ function useCurrentLocation() {
           latitude: position.coords.latitude,
         },
       };
-      document.querySelector("#start-query").value = "현위치";
       selectPlace("start", currentPlace);
+      lockStartToCurrentLocation();
       updateUserMarker(currentPlace.coordinate);
       setStatus("현위치 설정 완료");
       elements.useCurrentLocation.disabled = false;
-      elements.useCurrentLocation.innerHTML = buttonLabel;
     },
     (error) => {
       const message = locationErrorMessage(error);
       document.querySelector("#start-selected").textContent = message;
       setStatus("GPS 오류", true);
       elements.useCurrentLocation.disabled = false;
-      elements.useCurrentLocation.innerHTML = buttonLabel;
+      elements.useCurrentLocation.innerHTML =
+        '<i class="ti ti-current-location" aria-hidden="true"></i> 현위치';
     },
     { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
   );
 }
 
 async function searchPlaces(kind) {
+  // 현위치로 고정된 출발지는 검색으로 덮어쓰지 않는다.
+  if (kind === "start" && elements.startQuery.readOnly) return;
+
   const queryInput = document.querySelector(`#${kind}-query`);
   const results = document.querySelector(`#${kind}-results`);
   const query = queryInput.value.trim();
