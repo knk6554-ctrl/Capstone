@@ -3,11 +3,12 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#EDEAE1" />
-    <title>WAYBAND 경로 안내</title>
+    <meta name="theme-color" content="#f5f5f7" />
+    <title>WAYBAND · 햅틱 보행 내비게이션</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" />
@@ -17,16 +18,21 @@
   <body>
     <a class="skip-link" href="#main-content">본문으로 바로가기</a>
 
+    <!-- Layered Ambient Glows -->
     <div class="blob blob-amber" aria-hidden="true"></div>
     <div class="blob blob-teal" aria-hidden="true"></div>
 
+    <!-- Header / Navigation Pill Bar -->
     <header class="hero">
-      <img src="/static/assets/logo.png" alt="WAYBAND" class="logo" />
+      <div class="brand-group">
+        <img src="/static/assets/logo.png" alt="WAYBAND" class="logo" />
+      </div>
       <div id="system-status" class="status-pill" role="status" aria-live="polite">
         시스템 준비 중
       </div>
     </header>
 
+    <!-- Dynamic Island Alert Banner -->
     <div
       id="emergency-banner"
       class="emergency-banner"
@@ -39,28 +45,31 @@
         <span id="emergency-message"></span>
         <span id="emergency-time" class="emergency-time"></span>
       </div>
-      <button id="emergency-ack" type="button">확인했어요</button>
+      <button id="emergency-ack" type="button">확인</button>
     </div>
 
+    <!-- Main Workspace Layout -->
     <main id="main-content" class="layout">
+      <!-- iOS-Style Segmented Tab Rail -->
       <aside class="tab-rail" aria-label="화면 전환">
-        <button type="button" class="tab-button is-active" data-tab="kakao">
-          <i class="ti ti-route" aria-hidden="true"></i>
+        <button type="button" class="tab-button is-active" data-tab="kakao" title="경로 안내">
+          <i class="ti ti-map-pin" aria-hidden="true"></i>
           <span class="tab-label">경로</span>
         </button>
-        <button type="button" class="tab-button" data-tab="sensor">
-          <i class="ti ti-broadcast" aria-hidden="true"></i>
+        <button type="button" class="tab-button" data-tab="sensor" title="센서 및 시뮬레이터">
+          <i class="ti ti-activity" aria-hidden="true"></i>
           <span class="tab-label">센서</span>
         </button>
       </aside>
 
+      <!-- Primary Content Column -->
       <div class="tab-content-column">
-        <!-- 카카오 자동 경로 + 실시간 안내 -->
+        <!-- 카카오 자동 경로 + 실시간 안내 패널 -->
         <section class="glass-card tab-panel is-active" id="tab-kakao" aria-labelledby="route-heading">
           <div class="section-heading">
             <div>
               <h2 id="route-heading">경로 안내</h2>
-              <p>검색 결과에서 정확한 장소를 선택하세요.</p>
+              <p>출발지와 도착지를 검색하여 도보 경로를 생성합니다.</p>
             </div>
           </div>
 
@@ -72,9 +81,11 @@
                 type="search"
                 value="정동병원"
                 autocomplete="off"
-                placeholder="출발지를 입력하세요"
+                placeholder="출발 장소 또는 주소 검색"
               />
-              <button type="button" class="secondary" data-search="start">검색</button>
+              <button type="button" class="secondary" data-search="start">
+                <i class="ti ti-search" aria-hidden="true"></i> 검색
+              </button>
             </div>
             <p id="start-selected" class="selected-place">선택된 장소 없음</p>
             <div id="start-results" class="place-results" aria-live="polite"></div>
@@ -88,34 +99,37 @@
                 type="search"
                 value="상도장애인활동지원기관"
                 autocomplete="off"
-                placeholder="도착지를 입력하세요"
+                placeholder="도착 장소 또는 주소 검색"
               />
-              <button type="button" class="secondary" data-search="destination">검색</button>
+              <button type="button" class="secondary" data-search="destination">
+                <i class="ti ti-search" aria-hidden="true"></i> 검색
+              </button>
             </div>
             <p id="destination-selected" class="selected-place">선택된 장소 없음</p>
             <div id="destination-results" class="place-results" aria-live="polite"></div>
           </div>
 
-          <label for="route-mode">경로 방식</label>
+          <label for="route-mode">경로 탐색 옵션</label>
           <select id="route-mode">
-            <option value="ACCESSIBLE" selected>편안한 길 우선</option>
-            <option value="BROAD_FIRST">넓은 길 우선</option>
+            <option value="ACCESSIBLE" selected>편안한 길 우선 (계단 최소화)</option>
+            <option value="BROAD_FIRST">넓은 길 우선 (인도 중심)</option>
             <option value="SHORTEST">최단 경로</option>
           </select>
-          <p class="field-note">편안한 길은 완전한 무장애 경로를 보장하지 않습니다.</p>
+          <p class="field-note">※ 편안한 길 옵션은 계단을 줄이지만 완전한 무장애 경로를 보장하지는 않습니다.</p>
 
           <button id="create-route" type="button" class="primary" disabled>
-            경로 만들기
+            <i class="ti ti-route" aria-hidden="true"></i> 경로 생성
           </button>
           <p id="route-message" class="message" role="status" aria-live="polite"></p>
 
+          <!-- Summary Metric Cards -->
           <div id="route-summary" class="summary-grid" hidden>
             <article>
-              <span>거리</span>
+              <span>총 거리</span>
               <strong id="summary-distance">-</strong>
             </article>
             <article>
-              <span>예상 시간</span>
+              <span>예상 소요</span>
               <strong id="summary-time">-</strong>
             </article>
             <article>
@@ -124,78 +138,86 @@
             </article>
           </div>
 
-          <div class="button-pair" style="margin-top: 1.25rem">
+          <!-- GPS Guidance Actions -->
+          <div class="button-pair" style="margin-top: 1.4rem">
             <button id="start-navigation" type="button" class="primary" disabled>
-              GPS 안내 시작
+              <i class="ti ti-navigation" aria-hidden="true"></i> GPS 안내 시작
             </button>
             <button id="stop-navigation" type="button" class="secondary" disabled>
-              안내 중지
+              <i class="ti ti-player-stop" aria-hidden="true"></i> 안내 중지
             </button>
           </div>
+
+          <!-- Turn-by-Turn Guidance -->
           <div id="next-guidance" class="guidance-card" aria-live="assertive">
-            경로를 먼저 만들어 주세요.
+            경로를 먼저 생성해 주세요.
           </div>
           <ol id="directions" class="directions"></ol>
         </section>
 
-        <!-- 센서 · 진동 -->
+        <!-- 센서 · 진동 텔레메트리 패널 -->
         <section class="glass-card tab-panel" id="tab-sensor" aria-labelledby="sensor-heading">
           <div class="section-heading">
             <div>
-              <h2 id="sensor-heading">ToF 연동 시험</h2>
-              <p>4개 센서값을 mm 단위로 보내는 개발용 시뮬레이터입니다.</p>
+              <h2 id="sensor-heading">ToF 장애물 감지 시뮬레이터</h2>
+              <p>4개 ToF 센서의 감지 거리(mm)를 전송하여 실시간 위험 반응을 시험합니다.</p>
             </div>
           </div>
           <div class="sensor-grid">
-            <label>전방 왼쪽<input id="front-left-mm" type="number" value="2000" min="0" /></label>
-            <label>전방 오른쪽<input id="front-right-mm" type="number" value="2000" min="0" /></label>
-            <label>왼쪽 측면<input id="left-side-mm" type="number" value="2000" min="0" /></label>
-            <label>오른쪽 측면<input id="right-side-mm" type="number" value="2000" min="0" /></label>
+            <label>전방 왼쪽 (FL)<input id="front-left-mm" type="number" value="2000" min="0" step="50" /></label>
+            <label>전방 오른쪽 (FR)<input id="front-right-mm" type="number" value="2000" min="0" step="50" /></label>
+            <label>왼쪽 측면 (SL)<input id="left-side-mm" type="number" value="2000" min="0" step="50" /></label>
+            <label>오른쪽 측면 (SR)<input id="right-side-mm" type="number" value="2000" min="0" step="50" /></label>
           </div>
-          <button id="send-tof" type="button" class="secondary">센서값 전송</button>
+          <button id="send-tof" type="button" class="secondary" style="width: 100%;">
+            <i class="ti ti-send" aria-hidden="true"></i> 센서값 전송
+          </button>
           <div id="sensor-status" class="sensor-status" aria-live="polite"></div>
 
           <div class="emergency-simulator">
-            <h3>위험 버튼 (하드웨어 시뮬레이터)</h3>
+            <h3>비상 호출 스위치 (하드웨어 시뮬레이터)</h3>
             <p class="field-note">
-              실제로는 벨트에 달릴 버튼입니다. 지금은 여기서 눌러서 보호자 화면에
-              배너로 알림이 가는지 시험합니다.
+              시각장애인 착용 벨트의 비상 버튼을 시뮬레이션합니다. 작동 시 보호자 화면에 즉각 위험 배너가 표시됩니다.
             </p>
             <button id="emergency-trigger" type="button" class="danger-button">
-              위험 버튼 누르기
+              <i class="ti ti-alert-triangle" aria-hidden="true"></i> 긴급 비상 신호 전송
             </button>
           </div>
         </section>
       </div>
 
+      <!-- Secondary Context Column (Map & Haptic Feed) -->
       <div class="context-column">
+        <!-- Interactive Map Panel -->
         <section class="glass-card map-panel" aria-labelledby="map-heading">
           <div class="section-heading compact">
             <div>
-              <h2 id="map-heading">지도</h2>
+              <h2 id="map-heading">보행 지도</h2>
               <p id="map-caption">출발지와 도착지를 선택하세요.</p>
             </div>
           </div>
-          <div id="map" aria-label="카카오 경로 지도"></div>
+          <div id="map" aria-label="카카오 보행 지도"></div>
         </section>
 
+        <!-- Haptic Command Log Panel -->
         <section class="glass-card haptic-panel" aria-labelledby="haptic-heading">
           <div class="section-heading compact">
             <div>
-              <h2 id="haptic-heading">진동 명령 로그</h2>
-              <p>실제 장치로 전달할 JSON 명령을 화면에서도 확인합니다.</p>
+              <h2 id="haptic-heading">햅틱 진동 피드</h2>
+              <p>벨트 및 손목 밴드로 송신되는 진동 프로토콜 실시간 로그입니다.</p>
             </div>
           </div>
           <ul id="haptic-log" class="haptic-log" aria-live="polite">
-            <li>아직 생성된 진동 명령이 없습니다.</li>
+            <li>대기 중: 아직 생성된 진동 명령이 없습니다.</li>
           </ul>
         </section>
       </div>
     </main>
 
+    <!-- Accessible Apple Footer -->
     <footer>
-      <strong>안전 안내</strong>
-      <span>이 코드는 시제품입니다. 흰지팡이·안내견 등 기존 보행 보조 수단을 대체하지 않습니다.</span>
+      <strong>안전 및 접근성 안내</strong>
+      <span>본 시스템은 프로토타입 연구용이며 흰지팡이 및 안내견 등 표준 보행 보조 수단을 보완하도록 설계되었습니다.</span>
     </footer>
     <script src="/static/app.js" defer></script>
   </body>
