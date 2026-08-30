@@ -169,6 +169,7 @@ function useCurrentLocation() {
           latitude: position.coords.latitude,
         },
       };
+      document.querySelector("#start-query").value = "현위치";
       selectPlace("start", currentPlace);
       updateUserMarker(currentPlace.coordinate);
       setStatus("현위치 설정 완료");
