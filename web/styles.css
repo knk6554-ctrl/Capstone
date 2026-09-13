@@ -155,6 +155,43 @@ p {
   background: var(--mist);
 }
 
+/* 지도 우하단 "현재 위치로 이동" 버튼 — 지도앱들의 공통 관례 위치 */
+.recenter-button {
+  position: fixed;
+  right: 1rem;
+  bottom: 152px; /* JS가 하단 시트 높이에 맞춰 실시간으로 갱신 — 이 값은 초기 로딩 전 기본값 */
+  z-index: 15;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-float);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink);
+  font-size: 20px;
+  cursor: pointer;
+  transition: bottom 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.recenter-button:hover {
+  background: var(--field);
+}
+
+.recenter-button:active {
+  transform: scale(0.94);
+}
+
+@media (min-width: 881px) {
+  .recenter-button {
+    right: 1.5rem;
+    bottom: 1.5rem;
+  }
+}
+
 /* 지도 위 현재 위치 표시 — 파란 점 + 퍼지는 링 (지도앱 공통 관례라 그대로 유지) */
 .map-user-dot {
   position: relative;

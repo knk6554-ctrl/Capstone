@@ -12,13 +12,22 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2/dist/tabler-icons.min.css" />
-    <link rel="stylesheet" href="/static/styles.css?v=sheet-drag" />
+    <link rel="stylesheet" href="/static/styles.css?v=recenter-track" />
   </head>
   <body>
     <a class="skip-link" href="#main-content">본문으로 바로가기</a>
 
     <!-- 전체 화면을 채우는 지도 — 나머지 UI는 그 위에 얹힌다 -->
     <div id="map" class="map-layer" aria-label="카카오 보행 지도"></div>
+
+    <button
+      id="recenter-location"
+      type="button"
+      class="recenter-button"
+      aria-label="현재 위치로 이동"
+    >
+      <i class="ti ti-current-location" aria-hidden="true"></i>
+    </button>
 
     <!-- Dynamic Island Alert Banner -->
     <div
@@ -271,6 +280,6 @@
       </div>
     </main>
 
-    <script src="/static/app.js?v=sheet-drag" defer></script>
+    <script src="/static/app.js?v=recenter-track" defer></script>
   </body>
 </html>

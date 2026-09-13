@@ -59,6 +59,7 @@ const elements = {
   emergencyAck: document.querySelector("#emergency-ack"),
   emergencyTrigger: document.querySelector("#emergency-trigger"),
   panelToggle: document.querySelector("#panel-toggle"),
+  recenterButton: document.querySelector("#recenter-location"),
 };
 
 function switchTab(tabName) {
@@ -104,7 +105,7 @@ function loadKakaoMap(javascriptKey) {
           window.kakao.maps.ControlPosition.RIGHT,
         );
         resolve();
-        centerOnCurrentLocation();
+        locateAndCenterMap({ silent: true });
       });
     };
     script.onerror = () => reject(new Error("카카오 지도 SDK를 불러오지 못했습니다."));
@@ -112,10 +113,14 @@ function loadKakaoMap(javascriptKey) {
   });
 }
 
-// 지도가 뜨면 기본 좌표 대신 실제 현재 위치로 바로 맞춰 보여준다 — 실패/거부 시 조용히
-// 기본 위치를 그대로 둔다(경로 생성 등 나머지 기능은 위치 권한과 무관하게 동작해야 한다).
-function centerOnCurrentLocation() {
-  if (!window.isSecureContext || !navigator.geolocation || !state.map) return;
+// 지도를 현재 위치로 이동 + 파란 점 표시. silent=true면 실패해도 아무 표시 없이 조용히
+// 넘어간다(최초 지도 로딩 시 사용). 버튼 클릭 등 사용자가 직접 요청했을 때는 실패 이유를
+// system-status에 알려준다.
+function locateAndCenterMap({ silent = false } = {}) {
+  if (!window.isSecureContext || !navigator.geolocation || !state.map) {
+    if (!silent) setStatus(locationErrorMessage(), true);
+    return;
+  }
   navigator.geolocation.getCurrentPosition(
     (position) => {
       const location = {
@@ -127,8 +132,11 @@ function centerOnCurrentLocation() {
         new window.kakao.maps.LatLng(location.latitude, location.longitude),
       );
       updateUserMarker(location);
+      if (!silent) setStatus("현재 위치로 이동했습니다.");
     },
-    () => {},
+    (error) => {
+      if (!silent) setStatus(locationErrorMessage(error), true);
+    },
     { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 },
   );
 }
@@ -173,6 +181,7 @@ function bindEvents() {
   elements.emergencyAck.addEventListener("click", acknowledgeEmergency);
   bindHelpHints();
   bindPanelToggle();
+  elements.recenterButton.addEventListener("click", () => locateAndCenterMap());
   pollEmergency();
   setInterval(pollEmergency, 4000);
 
@@ -184,6 +193,7 @@ function bindEvents() {
       const panel = elements.panelToggle?.closest(".panel");
       if (panel) panel.style.height = "";
     }
+    syncRecenterButtonPosition();
   });
 }
 
@@ -192,6 +202,19 @@ function bindEvents() {
 const SHEET_PEEK_HEIGHT = 132;
 const sheetExpandedHeight = () => Math.round(window.innerHeight * 0.66);
 const isMobilePanelLayout = () => window.matchMedia("(max-width: 880px)").matches;
+
+// 지도 우하단 "현재 위치" 버튼은 하단 시트 위 가장자리에 항상 붙어 다닌다 — 시트가
+// 얼마나 펼쳐져 있든(접힘/드래그 중/펼침) 그 바로 위에 위치.
+function syncRecenterButtonPosition() {
+  const panel = document.querySelector(".panel");
+  if (!elements.recenterButton || !panel) return;
+  if (!isMobilePanelLayout()) {
+    elements.recenterButton.style.bottom = "";
+    return;
+  }
+  const panelHeight = panel.getBoundingClientRect().height;
+  elements.recenterButton.style.bottom = `${panelHeight + 16}px`;
+}
 
 function bindPanelToggle() {
   const toggle = elements.panelToggle;
@@ -206,12 +229,14 @@ function bindPanelToggle() {
   const setPanelHeight = (px) => {
     const clamped = Math.min(sheetExpandedHeight(), Math.max(SHEET_PEEK_HEIGHT, px));
     panel.style.height = `${clamped}px`;
+    syncRecenterButtonPosition();
   };
 
   const setCollapsed = (collapsed) => {
     panel.classList.toggle("is-collapsed", collapsed);
     toggle.setAttribute("aria-expanded", String(!collapsed));
     panel.style.height = `${collapsed ? SHEET_PEEK_HEIGHT : sheetExpandedHeight()}px`;
+    syncRecenterButtonPosition();
   };
 
   toggle.addEventListener("pointerdown", (event) => {
@@ -221,6 +246,7 @@ function bindPanelToggle() {
     startY = event.clientY;
     startHeight = panel.getBoundingClientRect().height;
     panel.style.transition = "none";
+    if (elements.recenterButton) elements.recenterButton.style.transition = "none";
     try {
       toggle.setPointerCapture(event.pointerId);
     } catch {
@@ -239,6 +265,7 @@ function bindPanelToggle() {
     if (!dragging) return;
     dragging = false;
     panel.style.transition = "";
+    if (elements.recenterButton) elements.recenterButton.style.transition = "";
     if (!dragged) {
       // 움직임 없이 그냥 탭한 경우 — 펼침/접힘 전환
       setCollapsed(!panel.classList.contains("is-collapsed"));
@@ -252,6 +279,8 @@ function bindPanelToggle() {
 
   toggle.addEventListener("pointerup", endDrag);
   toggle.addEventListener("pointercancel", endDrag);
+
+  syncRecenterButtonPosition();
 }
 
 // 회색 안내 문구를 ? 아이콘 뒤로 접어두고, 호버(데스크톱) 또는 클릭(터치)으로 펼친다.
