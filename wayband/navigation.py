@@ -203,6 +203,16 @@ class NavigationSession:
             project_onto_polyline_meters(event.location, route.path)[1]
             for event in self.events
         )
+        # 각 단계(step)가 전체 경로에서 몇 m 지점부터 시작하는지 미리 계산해둔다 —
+        # 지도 위 "현재 이동 경로" 자동 강조가 route_progress_meters만 보고도
+        # 지금 몇 번째 단계 구간을 걷고 있는지 바로 알 수 있게 하기 위함.
+        self._step_start_meters: list[float] = []
+        cumulative = 0.0
+        for step in route.steps:
+            self._step_start_meters.append(cumulative)
+            cumulative += sum(
+                haversine_meters(a, b) for a, b in zip(step.path, step.path[1:])
+            )
 
     def update(self, location: Coordinate, accuracy_meters: float | None) -> dict[str, Any]:
         commands: list[HapticCommand] = []
@@ -286,6 +296,16 @@ class NavigationSession:
             if self.route.total_distance_meters > 0
             else 0.0
         )
+        # 지금 실제로 걷고 있는 단계(step) 번호 — "현재 이동 경로" 자동 강조용.
+        # nextInstruction.stepIndex와는 다르다: 그건 다음 "안내(회전/횡단보도 등)" 이벤트만
+        # 가리켜서 평범한 직진 단계를 건너뛰지만, 이건 route_progress_meters 기준으로
+        # 지금 물리적으로 어느 단계 구간 위에 있는지를 그대로 가리킨다.
+        current_step_index = 0
+        for index, start_meters in enumerate(self._step_start_meters):
+            if self._route_progress_meters >= start_meters:
+                current_step_index = index
+            else:
+                break
         return {
             "routeId": self.route.route_id,
             "location": location.to_public_dict(),
@@ -294,6 +314,7 @@ class NavigationSession:
             "completed": next_event is None,
             "remainingDistanceMeters": round(remaining_distance_meters, 1),
             "remainingTimeSeconds": round(remaining_time_seconds),
+            "currentStepIndex": current_step_index,
             "nextInstruction": (
                 {
                     "stepIndex": next_event.step_index,

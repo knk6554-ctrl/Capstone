@@ -218,6 +218,60 @@ p {
   opacity: 0.5;
 }
 
+/* GPS 안내 중에만 뜨는 지도 보기 모드 전환 — 지도 상단 중앙에 떠 있다.
+   하단 시트와 무관한 위치라 recenter-button/eta-bar 같은 높이 추적이 필요 없다. */
+.route-view-toggle {
+  position: fixed;
+  left: 50%;
+  top: 1rem;
+  transform: translateX(-50%);
+  z-index: 15;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-float);
+}
+
+.route-view-toggle__btn {
+  min-height: 36px;
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.route-view-toggle__btn:hover:not(.is-active) {
+  background: var(--field);
+  color: var(--ink);
+}
+
+.route-view-toggle__btn.is-active {
+  background: var(--ink);
+  color: #ffffff;
+}
+
+@media (min-width: 881px) {
+  .route-view-toggle {
+    left: calc((100% + var(--panel-width) + 1rem) / 2);
+  }
+}
+
+/* "현재 이동 경로" 모드에서는 실시간 위치가 강조를 대신 넘겨주므로 목록 수동 클릭은 잠근다 */
+.directions.is-auto-following li {
+  cursor: default;
+}
+
+.directions.is-auto-following li:hover {
+  background: none;
+}
+
 @media (min-width: 881px) {
   .recenter-button {
     right: 1.5rem;

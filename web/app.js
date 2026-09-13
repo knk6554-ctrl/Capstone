@@ -15,6 +15,10 @@ const state = {
   hapticLogStarted: false,
   gpsFixCount: 0,
   accuracyCircle: null,
+  // "전체 경로" / "현재 이동 경로" 지도 보기 모드 — GPS 안내 중에만 의미가 있다.
+  routeViewMode: "full",
+  lastAutoStepIndex: -1,
+  lastKnownStepIndex: null,
 };
 
 // 위험 구간(계단·횡단보도)을 지도에 상시 표시할 색 — 성격이 다른 위험이라 색을 구분한다.
@@ -65,6 +69,7 @@ const elements = {
   etaTime: document.querySelector("#eta-time"),
   etaDistance: document.querySelector("#eta-distance"),
   etaArrival: document.querySelector("#eta-arrival"),
+  routeViewToggle: document.querySelector("#route-view-toggle"),
 };
 
 function switchTab(tabName) {
@@ -195,6 +200,7 @@ function bindEvents() {
   elements.emergencyAck.addEventListener("click", acknowledgeEmergency);
   bindHelpHints();
   bindPanelToggle();
+  bindRouteViewToggle();
   elements.recenterButton.addEventListener("click", () => locateAndCenterMap());
   pollEmergency();
   setInterval(pollEmergency, 4000);
@@ -800,9 +806,12 @@ function renderRoute(route) {
 
 // 안내 단계 클릭 시: 지도를 해당 좌표로 pan, 그 구간만 강조색 선으로 덧그리고
 // 번호 마커를 띄운다. 나머지 경로선은 흐리게 처리해 선택 구간을 도드라지게 한다.
-function focusRouteStep(route, index, item) {
+function focusRouteStep(route, index, item, { auto = false } = {}) {
   const step = route.steps?.[index];
   if (!step?.location || !state.map || !window.kakao?.maps) return;
+  // "현재 이동 경로" 모드일 땐 실시간 위치가 강조를 넘겨받으므로 사람이 직접 누르는
+  // 클릭은 무시한다(auto=true인 자동 호출만 통과).
+  if (!auto && state.routeViewMode === "live") return;
 
   elements.directions
     .querySelectorAll("li.is-active-step")
@@ -873,6 +882,63 @@ function focusRouteStep(route, index, item) {
   }
 }
 
+// focusRouteStep()이 켠 강조(마커·강조선·흐림)를 전부 되돌려 평범한 전체 경로 모습으로.
+function clearStepFocus() {
+  elements.directions
+    .querySelectorAll("li.is-active-step")
+    .forEach((li) => li.classList.remove("is-active-step"));
+  if (state.routeLine) state.routeLine.setOptions({ strokeOpacity: 0.95 });
+  state.hazardLines.forEach((line) => line.setOptions({ strokeOpacity: 1 }));
+  if (state.stepMarker) {
+    state.stepMarker.setMap(null);
+    state.stepMarker = null;
+  }
+  if (state.stepMarkerEnd) {
+    state.stepMarkerEnd.setMap(null);
+    state.stepMarkerEnd = null;
+  }
+  if (state.stepHighlightLine) {
+    state.stepHighlightLine.setMap(null);
+    state.stepHighlightLine = null;
+  }
+}
+
+// GPS 안내 중에만 뜨는 "전체 경로 / 현재 이동 경로" 전환. 기본값은 "현재 이동 경로" —
+// 안내를 시작한 목적 자체가 지금 어디를 걷고 있는지 보려는 것이라 자동 추적을 우선한다.
+function setRouteViewMode(mode) {
+  state.routeViewMode = mode;
+  document.querySelectorAll(".route-view-toggle__btn").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.viewMode === mode);
+  });
+  elements.directions.classList.toggle("is-auto-following", mode === "live");
+
+  if (mode === "full") {
+    clearStepFocus();
+    return;
+  }
+  // "현재 이동 경로"로 (다시) 전환: 마지막으로 알고 있던 현재 단계를 즉시 반영한다.
+  state.lastAutoStepIndex = -1;
+  if (state.lastKnownStepIndex != null) {
+    applyAutoStepFocus(state.lastKnownStepIndex);
+  }
+}
+
+function applyAutoStepFocus(stepIndex) {
+  state.lastKnownStepIndex = stepIndex;
+  if (state.routeViewMode !== "live") return;
+  if (stepIndex === state.lastAutoStepIndex) return;
+  const item = elements.directions.querySelectorAll("li")[stepIndex];
+  if (!item || !state.route) return;
+  state.lastAutoStepIndex = stepIndex;
+  focusRouteStep(state.route, stepIndex, item, { auto: true });
+}
+
+function bindRouteViewToggle() {
+  document.querySelectorAll(".route-view-toggle__btn").forEach((button) => {
+    button.addEventListener("click", () => setRouteViewMode(button.dataset.viewMode));
+  });
+}
+
 function startNavigation() {
   if (!state.route) return;
   if (!window.isSecureContext || !navigator.geolocation) {
@@ -883,6 +949,11 @@ function startNavigation() {
   state.gpsFixCount = 0;
   elements.gpsCount.textContent = "0";
   elements.gpsDebug.hidden = false;
+  // 안내를 시작할 때만 지도 보기 모드 전환이 뜬다 — 기본은 "현재 이동 경로"(실시간 추적).
+  state.lastAutoStepIndex = -1;
+  state.lastKnownStepIndex = null;
+  elements.routeViewToggle.hidden = false;
+  setRouteViewMode("live");
   state.watchId = navigator.geolocation.watchPosition(
     updateLocation,
     (error) => {
@@ -908,6 +979,8 @@ function stopNavigation() {
   elements.stopNavigation.disabled = true;
   setStatus("GPS 안내 중지");
   if (elements.etaBar) elements.etaBar.hidden = true;
+  elements.routeViewToggle.hidden = true;
+  setRouteViewMode("full");
 }
 
 function renderGpsDebug(position, result) {
@@ -948,6 +1021,9 @@ async function updateLocation(position) {
       setGuidance("목적지에 도착했습니다.", true);
       stopNavigation();
     } else {
+      if (typeof result.currentStepIndex === "number") {
+        applyAutoStepFocus(result.currentStepIndex);
+      }
       const next = result.nextInstruction;
       const routeState = result.offRoute ? "경로 이탈 감지 · " : "";
       const hazardTag =
