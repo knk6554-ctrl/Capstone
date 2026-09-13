@@ -995,6 +995,19 @@ button:disabled {
   100% { transform: scale(1); opacity: 1; }
 }
 
+/* 클릭한 단계의 "다음 번호" — 구간의 끝점을 표시. 방금 누른 번호보다 옅게 그려
+   어느 쪽이 실제로 선택된 단계인지 헷갈리지 않게 한다. */
+.map-step-marker--secondary {
+  width: 24px;
+  height: 24px;
+  background: #ffffff;
+  color: var(--apple-blue);
+  border-width: 2px;
+  border-color: var(--apple-blue);
+  font-size: 0.72rem;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(0, 0, 0, 0.1);
+}
+
 .haptic-log {
   max-height: 260px;
   overflow-y: auto;

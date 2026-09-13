@@ -6,6 +6,7 @@ const state = {
   markers: [],
   userMarker: null,
   stepMarker: null,
+  stepMarkerEnd: null,
   hazardLines: [],
   stepHighlightLine: null,
   selected: { start: null, destination: null },
@@ -505,6 +506,10 @@ function drawRoute(route) {
     state.stepMarker.setMap(null);
     state.stepMarker = null;
   }
+  if (state.stepMarkerEnd) {
+    state.stepMarkerEnd.setMap(null);
+    state.stepMarkerEnd = null;
+  }
   if (state.stepHighlightLine) {
     state.stepHighlightLine.setMap(null);
     state.stepHighlightLine = null;
@@ -642,6 +647,10 @@ function focusRouteStep(route, index, item) {
     state.stepMarker.setMap(null);
     state.stepMarker = null;
   }
+  if (state.stepMarkerEnd) {
+    state.stepMarkerEnd.setMap(null);
+    state.stepMarkerEnd = null;
+  }
   if (state.stepHighlightLine) {
     state.stepHighlightLine.setMap(null);
     state.stepHighlightLine = null;
@@ -670,6 +679,21 @@ function focusRouteStep(route, index, item) {
     yAnchor: 0.5,
     zIndex: 30,
   });
+
+  // 구간이 허공에서 끊긴 것처럼 보이지 않도록, 다음 단계가 있으면 그 끝점에도
+  // (옅은 톤의) 다음 번호 마커를 함께 띄운다 — 마지막 단계는 도착 핀이 이미 있어 생략.
+  const hasNextStep = index < route.steps.length - 1;
+  if (hasNextStep && step.path?.length >= 2) {
+    const endPoint = step.path[step.path.length - 1];
+    state.stepMarkerEnd = new window.kakao.maps.CustomOverlay({
+      map: state.map,
+      position: new window.kakao.maps.LatLng(endPoint.latitude, endPoint.longitude),
+      content: `<div class="map-step-marker map-step-marker--secondary">${index + 2}</div>`,
+      xAnchor: 0.5,
+      yAnchor: 0.5,
+      zIndex: 29,
+    });
+  }
 }
 
 function startNavigation() {
