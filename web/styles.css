@@ -1,93 +1,79 @@
 /* ==========================================================================
-   WAYBAND — Apple Human Interface System (macOS / iOS 18 Aesthetic)
+   WAYBAND — 지도 중심 레이아웃
+   데스크톱: 좌측 고정 패널 + 전체 화면 지도 (구글/카카오 지도 데스크톱 패턴)
+   모바일: 전체 화면 지도 + 하단 시트로 접히는 패널
    ========================================================================== */
 
 :root {
   color-scheme: light dark;
-  
-  /* Apple System Palette (Light) */
-  --system-bg: #f2f2f6;
-  --system-card-bg: rgba(255, 255, 255, 0.78);
-  --system-card-solid: #ffffff;
-  --system-inset-bg: rgba(0, 0, 0, 0.04);
-  
-  --system-label: #1c1c1e;
-  --system-secondary: #636366;
-  --system-tertiary: #8e8e93;
-  --system-quaternary: #c7c7cc;
-  
-  --apple-blue: #007aff;
-  --apple-blue-hover: #0062cc;
-  --apple-blue-subtle: rgba(0, 122, 255, 0.12);
-  --apple-blue-glow: rgba(0, 122, 255, 0.25);
-  
-  --apple-green: #34c759;
-  --apple-green-subtle: rgba(52, 199, 89, 0.14);
-  
-  --apple-orange: #ff9500;
-  --apple-orange-subtle: rgba(255, 149, 0, 0.14);
-  
-  --apple-red: #ff3b30;
-  --apple-red-hover: #d70015;
-  --apple-red-subtle: rgba(255, 59, 48, 0.14);
-  --apple-red-glow: rgba(255, 59, 48, 0.35);
-  
-  /* Apple Glass & Borders */
-  --glass-border: rgba(255, 255, 255, 0.9);
-  --glass-border-subtle: rgba(0, 0, 0, 0.08);
-  --glass-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.08), 0 2px 8px -2px rgba(0, 0, 0, 0.04);
-  --glass-shadow-lg: 0 24px 60px -12px rgba(0, 0, 0, 0.14), 0 4px 16px -4px rgba(0, 0, 0, 0.06);
-  
-  /* Radii */
-  --radius-xs: 8px;
-  --radius-sm: 12px;
-  --radius-md: 18px;
-  --radius-lg: 24px;
-  --radius-xl: 32px;
-  --radius-pill: 9999px;
-  
-  /* Fonts */
-  --font-system: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Pretendard", system-ui, sans-serif;
-  --font-mono: "SF Mono", "IBM Plex Mono", Menlo, Monaco, monospace;
+
+  --ink: #17303d;
+  --ink-strong: #0f4c46;
+  --ink-soft: #4a5a56;
+  --muted: #8a938e;
+
+  --paper: #ffffff;
+  --field: #f6f7f5;
+  --mist: #dde4df;
+
+  --line: #d7dbd6;
+  --line-soft: #eef0ed;
+
+  --start-green: #2f6f5e;
+  --hazard-stairs: #d9730d;
+  --hazard-stairs-tint: rgba(217, 115, 13, 0.1);
+  --hazard-crosswalk: #c1352b;
+  --hazard-crosswalk-tint: rgba(193, 53, 43, 0.1);
+
+  --danger: #c1352b;
+  --amber-deep: #b25b00;
+
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+
+  --shadow-sm: 0 2px 6px rgba(23, 48, 61, 0.08);
+  --shadow-lg: 0 -6px 24px rgba(23, 48, 61, 0.16);
+  --shadow-float: 0 4px 16px rgba(23, 48, 61, 0.14);
+
+  --font-system: "Space Grotesk", -apple-system, BlinkMacSystemFont, "Pretendard", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", Menlo, Monaco, monospace;
+
+  --panel-width: 400px;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --system-bg: #000000;
-    --system-card-bg: rgba(28, 28, 30, 0.78);
-    --system-card-solid: #1c1c1e;
-    --system-inset-bg: rgba(255, 255, 255, 0.06);
-    
-    --system-label: #f5f5f7;
-    --system-secondary: #a1a1a6;
-    --system-tertiary: #86868b;
-    --system-quaternary: #48484a;
-    
-    --apple-blue: #0a84ff;
-    --apple-blue-hover: #409cff;
-    --apple-blue-subtle: rgba(10, 132, 255, 0.2);
-    --apple-blue-glow: rgba(10, 132, 255, 0.35);
-    
-    --apple-green: #30d158;
-    --apple-green-subtle: rgba(48, 209, 88, 0.2);
-    
-    --apple-orange: #ff9f0a;
-    --apple-orange-subtle: rgba(255, 159, 10, 0.2);
-    
-    --apple-red: #ff453a;
-    --apple-red-hover: #ff6961;
-    --apple-red-subtle: rgba(255, 69, 58, 0.25);
-    --apple-red-glow: rgba(255, 69, 58, 0.45);
-    
-    --glass-border: rgba(255, 255, 255, 0.16);
-    --glass-border-subtle: rgba(255, 255, 255, 0.09);
-    --glass-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.5), 0 2px 8px -2px rgba(0, 0, 0, 0.3);
-    --glass-shadow-lg: 0 24px 60px -12px rgba(0, 0, 0, 0.7), 0 4px 16px -4px rgba(0, 0, 0, 0.4);
+    --ink: #eef2f0;
+    --ink-strong: #7fd7bd;
+    --ink-soft: #a7b3ae;
+    --muted: #6f7d78;
+
+    --paper: #121c1a;
+    --field: #1a2624;
+    --mist: #0d1614;
+
+    --line: rgba(255, 255, 255, 0.14);
+    --line-soft: rgba(255, 255, 255, 0.08);
+
+    --start-green: #56b499;
+    --hazard-stairs: #e8973a;
+    --hazard-stairs-tint: rgba(232, 151, 58, 0.16);
+    --hazard-crosswalk: #e2564a;
+    --hazard-crosswalk-tint: rgba(226, 86, 74, 0.16);
+
+    --danger: #e2564a;
+    --amber-deep: #e8973a;
+
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 -6px 28px rgba(0, 0, 0, 0.5);
+    --shadow-float: 0 4px 18px rgba(0, 0, 0, 0.45);
   }
 }
 
 /* ==========================================================================
-   Global Reset & Ambient Background
+   Reset
    ========================================================================== */
 
 *, *::before, *::after {
@@ -95,10 +81,12 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-/* display를 지정한 클래스(.summary-grid 등)가 UA의 [hidden] 규칙을 덮어써서
-   hidden 요소가 계속 보이는 문제 방지 */
 [hidden] {
   display: none !important;
+}
+
+html, body {
+  height: 100%;
 }
 
 html {
@@ -107,845 +95,67 @@ html {
 
 body {
   margin: 0;
-  min-height: 100vh;
+  overflow: hidden; /* 지도/패널이 각자 고정 레이어라 페이지 자체는 스크롤하지 않는다 */
   font-family: var(--font-system);
-  color: var(--system-label);
-  background-color: var(--system-bg);
-  line-height: 1.47059;
-  letter-spacing: 0;
+  color: var(--ink);
+  background: var(--paper);
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  position: relative;
-  overflow-x: hidden;
 }
-
-/* Vivid Apple Ambient Aura */
-.blob {
-  position: fixed;
-  border-radius: 50%;
-  filter: blur(80px);
-  z-index: 0;
-  pointer-events: none;
-  opacity: 0.5;
-  /* Promote to GPU compositor layer — prevents full-viewport repaint on scroll */
-  will-change: transform;
-  transform: translateZ(0);
-}
-
-.blob-amber {
-  width: 44rem;
-  height: 44rem;
-  top: -14rem;
-  right: -10rem;
-  background: radial-gradient(circle, rgba(0, 122, 255, 0.18), rgba(90, 200, 250, 0.08), transparent 70%);
-}
-
-.blob-teal {
-  width: 36rem;
-  height: 36rem;
-  bottom: -10rem;
-  left: -8rem;
-  background: radial-gradient(circle, rgba(52, 199, 89, 0.15), rgba(0, 122, 255, 0.05), transparent 70%);
-}
-
-/* ==========================================================================
-   Typography & Headers
-   ========================================================================== */
 
 h1, h2, h3, h4 {
-  color: var(--system-label);
+  color: var(--ink);
   font-weight: 700;
-  letter-spacing: -0.018em;
+  letter-spacing: -0.01em;
   margin: 0;
   line-height: 1.25;
 }
 
 h2 {
-  font-size: 1.4rem;
+  font-size: 1.15rem;
 }
 
 h3 {
-  font-size: 1rem;
-  letter-spacing: -0.01em;
+  font-size: 0.95rem;
 }
 
 p {
-  color: var(--system-secondary);
-  font-size: 0.92rem;
-  line-height: 1.55;
-  letter-spacing: 0;
-  margin: 0;
-}
-
-/* ==========================================================================
-   좌측 고정 사이드바 (브랜드 · 상태 · 화면 전환 탭)
-   ========================================================================== */
-
-.sidebar {
-  position: fixed;
-  inset: 0 auto 0 0;
-  z-index: 100;
-  width: 15rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1.75rem;
-  padding: 1.6rem 1.25rem;
-  /* 고정 요소에 backdrop-filter를 쓰면 스크롤마다 뒤 화면을 다시 블러 처리해서
-     특히 휴대폰에서 스크롤이 버벅인다. 불투명 배경으로 간다. */
-  background: var(--system-card-solid);
-  border-right: 1px solid var(--glass-border-subtle);
-}
-
-.sidebar__top {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 1rem;
-}
-
-.logo {
-  height: 38px;
-  width: auto;
-  display: block;
-  object-fit: contain;
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.logo:hover {
-  transform: scale(1.03);
-}
-
-.status-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.55rem;
-  border-radius: var(--radius-pill);
-  padding: 0.45rem 1rem;
-  background: var(--system-inset-bg);
-  border: 1px solid var(--glass-border-subtle);
-  color: var(--system-label);
-  font-size: 0.85rem;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
-.status-pill::before {
-  content: "";
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--apple-green);
-  box-shadow: 0 0 0 3px var(--apple-green-subtle);
-  animation: pulse-ring 2s infinite cubic-bezier(0.45, 0, 0.55, 1);
-}
-
-@keyframes pulse-ring {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.3); opacity: 0.7; }
-}
-
-/* ==========================================================================
-   Dynamic Island Alert Banner
-   ========================================================================== */
-
-.emergency-banner {
-  position: fixed;
-  top: 1rem;
-  left: calc(15rem + 1.75rem);
-  right: 1.75rem;
-  z-index: 150;
-  margin: 0;
-  animation: island-drop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.2);
-}
-
-@keyframes island-drop {
-  0% { transform: translateY(-16px) scale(0.95); opacity: 0; }
-  100% { transform: translateY(0) scale(1); opacity: 1; }
-}
-
-.emergency-banner:not([hidden]) {
-  display: flex;
-  box-shadow: var(--glass-shadow-lg);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-}
-
-.emergency-banner > div:first-child {
-  flex: 1;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.85rem;
-  padding: 1rem 1.6rem;
-  background: var(--apple-red);
-  color: #ffffff;
-  font-size: 0.95rem;
-}
-
-.emergency-banner strong {
-  font-weight: 700;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-.emergency-time {
-  margin-left: auto;
-  font-family: var(--font-mono);
-  font-size: 0.82rem;
-  background: rgba(0, 0, 0, 0.22);
-  padding: 0.25rem 0.6rem;
-  border-radius: var(--radius-xs);
-}
-
-.emergency-banner button {
-  background: #bb1f16;
-  color: #ffffff;
-  border: none;
-  font-weight: 700;
-  padding: 1rem 1.8rem;
-  border-radius: 0;
-  min-height: auto;
-  box-shadow: none;
-  cursor: pointer;
-  transition: background 0.15s ease;
-}
-
-.emergency-banner button:hover {
-  background: #9f160e;
-}
-
-/* ==========================================================================
-   Main Grid Layout & Glass Cards
-   ========================================================================== */
-
-.layout {
-  position: relative;
-  margin-left: 15rem;
-  padding: 1.5rem 1.75rem 4rem;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 30rem;
-  gap: 1.5rem;
-  align-items: start;
-}
-
-.glass-card {
-  padding: clamp(1.4rem, 3.2vw, 2rem);
-  border-radius: var(--radius-lg);
-  background: var(--system-card-bg);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-shadow);
-  transition: box-shadow 0.3s ease;
-}
-
-.glass-card:hover {
-  box-shadow: var(--glass-shadow-lg);
-}
-
-/* ==========================================================================
-   Sidebar Tab Navigation
-   ========================================================================== */
-
-.tab-rail {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.tab-button {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 0.7rem;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  border: 1px solid transparent;
-  padding: 0.6rem 0.85rem;
-  color: var(--system-secondary);
-  min-height: 44px;
-  cursor: pointer;
-  box-shadow: none;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.tab-button i {
-  font-size: 20px;
-}
-
-.tab-label {
-  font-size: 0.92rem;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
-.tab-button:hover:not(.is-active) {
-  background: var(--system-inset-bg);
-  color: var(--system-label);
-}
-
-.tab-button.is-active {
-  background: var(--apple-blue);
-  color: #ffffff;
-  box-shadow: 0 4px 14px var(--apple-blue-glow);
-}
-
-.tab-content-column,
-.context-column {
-  display: grid;
-  gap: 1.5rem;
-}
-
-.tab-content-column {
-  max-width: 680px;
-}
-
-/* 지도 + 햅틱 피드: 스크롤을 따라오되(sticky) 페이지 끝에서는 본문과 함께 끝난다.
-   페이지 스크롤은 하나뿐 — 내부에 별도 스크롤 영역을 만들지 않는다. */
-.context-column {
-  position: sticky;
-  top: 1.5rem;
-  align-self: start;
-}
-
-.tab-panel {
-  display: none;
-}
-
-.tab-panel.is-active {
-  display: block;
-  animation: apple-panel-fade 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes apple-panel-fade {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.section-heading {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
-
-.section-heading.compact {
-  margin-bottom: 1rem;
-}
-
-.section-heading h2 {
-  font-size: 1.4rem;
-  font-weight: 700;
-  letter-spacing: -0.022em;
-  line-height: 1.2;
-  color: var(--system-label);
-}
-
-.section-heading > div > p {
-  margin-top: 0.32rem;
+  color: var(--ink-soft);
   font-size: 0.88rem;
-  color: var(--system-secondary);
   line-height: 1.5;
-  letter-spacing: 0;
+  margin: 0;
 }
 
-/* ==========================================================================
-   Apple Inputs, Search Bars & Pickers
-   ========================================================================== */
-
-.place-search {
-  margin-bottom: 1.4rem;
-}
-
-.search-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.65rem;
-}
-
-.place-search[data-kind="start"] .search-row {
-  grid-template-columns: minmax(0, 1fr) auto auto;
-}
-
-input[type="search"],
-input[type="number"],
-select {
-  width: 100%;
-  min-height: 46px;
-  padding: 0.7rem 1rem;
-  font-family: inherit;
-  font-size: 0.95rem;
-  color: var(--system-label);
-  background: var(--system-inset-bg);
-  border: 1px solid var(--glass-border-subtle);
-  border-radius: var(--radius-sm);
-  outline: none;
-  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-input[type="search"].is-locked {
-  color: var(--apple-blue);
-  font-weight: 600;
-  background: var(--apple-blue-subtle, var(--system-inset-bg));
-  border-color: var(--apple-blue);
-  cursor: default;
-}
-
-input[type="search"]:focus,
-input[type="number"]:focus,
-select:focus {
-  background: var(--system-card-solid);
-  border-color: var(--apple-blue);
-  box-shadow: 0 0 0 4px var(--apple-blue-subtle);
-}
-
-select {
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 1rem center;
-  background-size: 16px;
-  padding-right: 2.6rem;
-  cursor: pointer;
-}
-
-label {
-  display: block;
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: var(--system-secondary);
-  margin-bottom: 0.45rem;
-  letter-spacing: 0;
-}
-
-/* Buttons */
-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.45rem;
-  min-height: 46px;
-  padding: 0.7rem 1.3rem;
-  border-radius: var(--radius-sm);
-  font-family: inherit;
-  font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-  user-select: none;
-  border: none;
-  outline: none;
-  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-/* Tactile Spring Press */
-button:active:not(:disabled) {
-  transform: scale(0.965);
-  transition: transform 0.08s cubic-bezier(0.2, 0, 0, 1);
-}
-
-button:disabled {
-  opacity: 0.42;
-  cursor: not-allowed;
-  transform: none !important;
-}
-
-.primary {
-  background: var(--apple-blue);
-  color: #ffffff !important;
-  box-shadow: 0 4px 14px var(--apple-blue-glow);
-}
-
-.primary:hover:not(:disabled) {
-  background: var(--apple-blue-hover);
-  box-shadow: 0 6px 20px var(--apple-blue-glow);
-}
-
-.secondary {
-  background: var(--system-inset-bg);
-  color: var(--apple-blue);
-  border: 1px solid var(--glass-border-subtle);
-}
-
-.secondary:hover:not(:disabled) {
-  background: var(--system-card-solid);
-  border-color: var(--apple-blue);
-}
-
-#create-route {
-  width: 100%;
-  margin-top: 1.4rem;
-  min-height: 50px;
-  font-size: 1.02rem;
-}
-
-.selected-place {
-  margin-top: 0.5rem;
-  font-size: 0.86rem;
-  color: var(--system-tertiary);
-}
-
-.selected-place.is-selected {
-  color: var(--apple-blue);
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-.selected-place.is-selected::before {
-  content: "✓";
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  background: var(--apple-blue-subtle);
-  border-radius: 50%;
-  font-size: 0.75rem;
-  font-weight: 800;
-}
-
-.place-results {
-  display: grid;
-  gap: 0.5rem;
-  max-height: 15rem;
-  overflow-y: auto;
-  margin-top: 0.65rem;
-}
-
-.place-result {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  text-align: left;
-  padding: 0.85rem 1.1rem;
-  background: var(--system-inset-bg);
-  border: 1px solid var(--glass-border-subtle);
-  border-radius: var(--radius-sm);
-}
-
-.place-result:hover {
-  background: var(--system-card-solid);
-  border-color: var(--apple-blue);
-}
-
-.place-result strong {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--system-label);
-}
-
-.place-result span {
-  font-size: 0.82rem;
-  color: var(--system-secondary);
-  margin-top: 0.2rem;
-}
-
-.field-note,
-.message {
-  margin-top: 0.5rem;
-  color: var(--system-secondary);
-  font-size: 0.86rem;
-  line-height: 1.55;
-  letter-spacing: 0;
-}
-
-/* 작은 ? 아이콘 + 호버/클릭 시 뜨는 설명 말풍선 */
-.help-hint {
-  position: relative;
-  display: inline-flex;
-  vertical-align: middle;
-  margin-left: 0.35rem;
-}
-
-.help-hint__trigger {
-  width: 18px;
-  height: 18px;
-  min-height: 0;
-  padding: 0;
-  border-radius: 50%;
-  border: 1px solid var(--glass-border-subtle);
-  background: var(--system-inset-bg);
-  color: var(--system-secondary);
-  font-size: 0.72rem;
-  font-weight: 700;
-  line-height: 1;
-  cursor: help;
-  transition: color 0.15s ease, border-color 0.15s ease;
-}
-
-.help-hint__trigger:hover,
-.help-hint__trigger:focus-visible {
-  color: var(--apple-blue);
-  border-color: var(--apple-blue);
-}
-
-.help-hint__bubble {
+.skip-link {
   position: absolute;
-  top: calc(100% + 8px);
   left: 0;
-  z-index: 200;
-  width: max-content;
-  max-width: min(280px, 74vw);
-  padding: 0.6rem 0.75rem;
-  border-radius: var(--radius-sm);
-  background: var(--system-card-solid);
-  border: 1px solid var(--glass-border-subtle);
-  box-shadow: var(--glass-shadow-lg);
-  color: var(--system-secondary);
-  font-size: 0.8rem;
-  font-weight: 400;
-  line-height: 1.5;
-  letter-spacing: 0;
-  white-space: normal;
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(-4px);
-  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
+  top: 0;
+  z-index: 999;
+  padding: 0.6rem 1rem;
+  background: var(--ink);
+  color: #ffffff;
+  border-radius: 0 0 var(--radius-sm) 0;
+  transform: translateY(-120%);
+  transition: transform 0.15s ease;
 }
 
-.help-hint:hover .help-hint__bubble,
-.help-hint:focus-within .help-hint__bubble,
-.help-hint.is-open .help-hint__bubble {
-  opacity: 1;
-  visibility: visible;
+.skip-link:focus {
   transform: translateY(0);
 }
 
-.route-hazards,
-.route-comparison {
-  margin-top: 0.5rem;
-  font-size: 0.86rem;
-  line-height: 1.55;
-  color: var(--system-secondary);
-}
-
-.route-comparison {
-  color: var(--apple-blue);
-  font-weight: 600;
-}
-
-.route-warning {
-  margin-top: 0.6rem;
-  padding: 0.7rem 0.9rem;
-  border-radius: var(--radius-sm);
-  background: rgba(255, 149, 0, 0.14);
-  border: 1px solid rgba(255, 149, 0, 0.45);
-  color: var(--amber-deep, #b25b00);
-  font-size: 0.86rem;
-  font-weight: 600;
-  line-height: 1.5;
-}
-
-.directions li.is-stairs {
-  background: rgba(255, 149, 0, 0.12);
-}
-
-.directions li.is-stairs::before {
-  background: rgba(255, 149, 0, 0.9);
-  color: #fff;
-}
-
-.directions li.is-crosswalk {
-  background: rgba(255, 59, 48, 0.1);
-}
-
-.directions li.is-crosswalk::before {
-  background: rgba(255, 59, 48, 0.9);
-  color: #fff;
-}
-
 /* ==========================================================================
-   Apple Health / Fitness Metric Summary Cards
+   지도 — 전체 화면을 채우는 바탕 레이어
    ========================================================================== */
 
-.summary-grid {
-  margin-top: 1.4rem;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.85rem;
+#map.map-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: var(--mist);
 }
 
-.summary-grid article {
-  padding: 1.1rem 0.9rem;
-  background: var(--system-inset-bg);
-  border: 1px solid var(--glass-border-subtle);
-  border-radius: var(--radius-md);
-  text-align: center;
-  transition: background 0.2s ease;
-}
-
-.summary-grid article:hover {
-  background: var(--system-card-solid);
-}
-
-.summary-grid span {
-  display: block;
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--system-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.summary-grid strong {
-  display: block;
-  margin-top: 0.4rem;
-  font-size: 1.35rem;
-  font-weight: 700;
-  color: var(--apple-blue);
-  letter-spacing: -0.02em;
-}
-
-.button-pair {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.85rem;
-}
-
-/* ==========================================================================
-   Apple Maps Guidance & Turn Directions
-   ========================================================================== */
-
-.guidance-card {
-  margin: 1.4rem 0 0;
-  min-height: 84px;
-  padding: 1.25rem 1.5rem;
-  border-radius: var(--radius-md);
-  background: var(--system-card-solid);
-  border: 1px solid var(--glass-border);
-  border-left: 6px solid var(--apple-blue);
-  box-shadow: var(--glass-shadow);
-  color: var(--system-label);
-  font-size: 1.05rem;
-  font-weight: 700;
-  line-height: 1.5;
-  display: flex;
-  align-items: center;
-}
-
-/* 야외 워킹 테스트용 GPS 상태 판 */
-.gps-debug {
-  margin: 0.75rem 0 0;
-  padding: 0.85rem 1rem;
-  border-radius: var(--radius-sm);
-  background: var(--system-inset-bg);
-  border: 1px dashed var(--glass-border-subtle);
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 0.55rem 1.1rem;
-  font-family: var(--font-mono);
-  font-size: 0.8rem;
-}
-
-.gps-debug > div {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-}
-
-.gps-debug dt {
-  color: var(--system-tertiary);
-  font-size: 0.72rem;
-  letter-spacing: 0.02em;
-}
-
-.gps-debug dd {
-  margin: 0;
-  color: var(--system-label);
-  font-weight: 600;
-}
-
-.gps-debug dd[data-level="good"] { color: var(--apple-green); }
-.gps-debug dd[data-level="ok"] { color: var(--amber-deep, #b25b00); }
-.gps-debug dd[data-level="poor"] { color: var(--danger, var(--apple-red)); }
-
-.directions {
-  margin: 1.4rem 0 0;
-  padding: 0;
-  list-style: none;
-  border-radius: var(--radius-md);
-  background: var(--system-inset-bg);
-  border: 1px solid var(--glass-border-subtle);
-  counter-reset: dir-step;
-}
-
-.directions li {
-  counter-increment: dir-step;
-  position: relative;
-  padding: 0.95rem 1.2rem 0.95rem 3.4rem;
-  border-bottom: 1px solid var(--glass-border-subtle);
-  color: var(--system-secondary);
-  font-size: 0.92rem;
-  line-height: 1.55;
-  letter-spacing: 0;
-  cursor: pointer;
-  transition: background 0.15s ease;
-}
-
-.directions li:last-child {
-  border-bottom: none;
-}
-
-.directions li:hover {
-  background: var(--system-card-solid);
-}
-
-.directions li:focus-visible {
-  outline: 2px solid var(--apple-blue);
-  outline-offset: -2px;
-  border-radius: var(--radius-xs);
-}
-
-/* 클릭해서 지도에서 보고 있는 단계 강조 */
-.directions li.is-active-step {
-  background: var(--apple-blue-subtle);
-}
-
-.directions li.is-active-step::before {
-  background: var(--apple-blue);
-  color: #ffffff;
-}
-
-.directions li::before {
-  content: counter(dir-step);
-  position: absolute;
-  left: 1.1rem;
-  top: 1rem;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--apple-blue-subtle);
-  color: var(--apple-blue);
-  font-size: 0.76rem;
-  font-weight: 800;
-  line-height: 22px;
-  text-align: center;
-}
-
-.directions strong {
-  color: var(--system-label);
-  font-weight: 700;
-}
-
-/* ==========================================================================
-   Map & Haptic Feed Panels
-   ========================================================================== */
-
-#map {
-  width: 100%;
-  min-height: 380px;
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  background: #e5e5ea;
-  border: 1px solid var(--glass-border-subtle);
-}
-
-/* 지도 위 현재 위치 표시 — 파란 점 + 퍼지는 링 (출발/도착 핀과 구분) */
+/* 지도 위 현재 위치 표시 — 파란 점 + 퍼지는 링 (지도앱 공통 관례라 그대로 유지) */
 .map-user-dot {
   position: relative;
   width: 18px;
@@ -975,17 +185,16 @@ button:disabled {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  background: var(--apple-blue);
+  background: var(--start-green);
   color: #ffffff;
   border: 3px solid #ffffff;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
   font-family: var(--font-mono);
-  font-size: 0.82rem;
-  font-weight: 800;
-  line-height: 1;
+  font-size: 0.78rem;
+  font-weight: 700;
   animation: map-step-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
@@ -995,21 +204,712 @@ button:disabled {
   100% { transform: scale(1); opacity: 1; }
 }
 
-/* 클릭한 단계의 "다음 번호" — 구간의 끝점을 표시. 방금 누른 번호보다 옅게 그려
-   어느 쪽이 실제로 선택된 단계인지 헷갈리지 않게 한다. */
 .map-step-marker--secondary {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   background: #ffffff;
-  color: var(--apple-blue);
+  color: var(--start-green);
   border-width: 2px;
-  border-color: var(--apple-blue);
+  border-color: var(--start-green);
+  font-size: 0.7rem;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.24);
+}
+
+/* ==========================================================================
+   비상 알림 배너 — 지도 위에 뜨는 오버레이
+   ========================================================================== */
+
+.emergency-banner {
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  right: 1rem;
+  z-index: 60;
+  margin: 0;
+  animation: banner-drop 0.3s ease;
+}
+
+@media (min-width: 881px) {
+  .emergency-banner {
+    left: calc(var(--panel-width) + 1.25rem);
+    right: 1.25rem;
+  }
+}
+
+@keyframes banner-drop {
+  from { transform: translateY(-12px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.emergency-banner:not([hidden]) {
+  display: flex;
+  box-shadow: var(--shadow-float);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.emergency-banner > div:first-child {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.9rem 1.4rem;
+  background: var(--hazard-crosswalk);
+  color: #ffffff;
+  font-size: 0.92rem;
+}
+
+.emergency-banner strong {
+  font-weight: 700;
+}
+
+.emergency-time {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  background: rgba(0, 0, 0, 0.22);
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-xs);
+}
+
+.emergency-banner button {
+  background: rgba(0, 0, 0, 0.18);
+  color: #ffffff;
+  border: none;
+  font-weight: 700;
+  padding: 0.9rem 1.5rem;
+  border-radius: 0;
+  min-height: auto;
+  cursor: pointer;
+}
+
+.emergency-banner button:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* ==========================================================================
+   패널 — 데스크톱: 좌측 고정 / 모바일: 하단 시트
+   ========================================================================== */
+
+.panel {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: auto;
+  z-index: 20;
+  max-height: 66vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  transition: max-height 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.panel.is-collapsed {
+  max-height: 128px;
+}
+
+.panel__toggle {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  min-height: 26px;
+  padding: 10px 0 2px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.panel__handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line);
+}
+
+.panel__brand {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 1.25rem 0.7rem;
+}
+
+.logo {
+  height: 28px;
+  width: auto;
+  display: block;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.status-pill::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--start-green);
+  flex-shrink: 0;
+}
+
+.panel__scroll {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0.3rem 1.25rem 1.5rem;
+}
+
+/* ==========================================================================
+   탭 전환 (경로 / 센서)
+   ========================================================================== */
+
+.tab-rail {
+  flex-shrink: 0;
+  display: flex;
+  gap: 0.4rem;
+  padding: 0 1.25rem 0.75rem;
+  margin-bottom: 0.4rem;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.tab-button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 40px;
+  padding: 0.5rem 0.6rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tab-button i {
+  font-size: 16px;
+}
+
+.tab-button:hover:not(.is-active) {
+  background: var(--field);
+  color: var(--ink);
+}
+
+.tab-button.is-active {
+  background: var(--ink);
+  color: #ffffff;
+}
+
+.tab-panel {
+  display: none;
+}
+
+.tab-panel.is-active {
+  display: block;
+  animation: panel-fade 0.2s ease;
+}
+
+@keyframes panel-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.section-heading {
+  margin-bottom: 1.1rem;
+}
+
+.section-heading h2 {
+  margin-bottom: 0.25rem;
+}
+
+/* ==========================================================================
+   입력 · 검색 · 선택
+   ========================================================================== */
+
+.place-search {
+  margin-bottom: 1.1rem;
+}
+
+.search-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.5rem;
+}
+
+.place-search[data-kind="start"] .search-row {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+input[type="search"],
+input[type="number"],
+select {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.6rem 0.85rem;
+  font-family: inherit;
+  font-size: 0.9rem;
+  color: var(--ink);
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  outline: none;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+input[type="search"].is-locked {
+  color: var(--ink-strong);
+  font-weight: 600;
+  background: var(--hazard-crosswalk-tint, var(--field));
+  border-color: var(--ink-strong);
+}
+
+input[type="search"]:focus,
+input[type="number"]:focus,
+select:focus {
+  background: var(--paper);
+  border-color: var(--ink);
+  box-shadow: 0 0 0 3px rgba(23, 48, 61, 0.12);
+}
+
+select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238a938e' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.85rem center;
+  background-size: 15px;
+  padding-right: 2.4rem;
+  cursor: pointer;
+}
+
+label {
+  display: block;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  margin-bottom: 0.4rem;
+}
+
+/* 버튼 */
+button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 44px;
+  padding: 0.6rem 1.1rem;
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  border: none;
+  outline: none;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.primary {
+  background: var(--ink);
+  color: #ffffff !important;
+}
+
+.primary:hover:not(:disabled) {
+  background: var(--ink-strong);
+}
+
+.secondary {
+  background: var(--field);
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+
+.secondary:hover:not(:disabled) {
+  background: var(--line-soft);
+  border-color: var(--ink);
+}
+
+#create-route {
+  width: 100%;
+  margin-top: 1.1rem;
+  min-height: 48px;
+  font-size: 0.98rem;
+}
+
+.selected-place {
+  margin-top: 0.45rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.selected-place.is-selected {
+  color: var(--ink-strong);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.selected-place.is-selected::before {
+  content: "✓";
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  background: var(--line-soft);
+  border-radius: 50%;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.place-results {
+  display: grid;
+  gap: 0.45rem;
+  max-height: 13rem;
+  overflow-y: auto;
+  margin-top: 0.6rem;
+}
+
+.place-result {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  padding: 0.75rem 0.95rem;
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.place-result:hover {
+  background: var(--line-soft);
+  border-color: var(--ink);
+}
+
+.place-result strong {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.place-result span {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  margin-top: 0.2rem;
+}
+
+.field-note,
+.message {
+  margin-top: 0.45rem;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+/* 작은 ? 아이콘 + 호버/클릭 시 뜨는 설명 말풍선 */
+.help-hint {
+  position: relative;
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: 0.3rem;
+}
+
+.help-hint__trigger {
+  width: 17px;
+  height: 17px;
+  min-height: 0;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--field);
+  color: var(--ink-soft);
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: help;
+}
+
+.help-hint__trigger:hover,
+.help-hint__trigger:focus-visible {
+  color: var(--ink);
+  border-color: var(--ink);
+}
+
+.help-hint__bubble {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 200;
+  width: max-content;
+  max-width: min(260px, 70vw);
+  padding: 0.55rem 0.7rem;
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-float);
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  white-space: normal;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
+}
+
+.help-hint:hover .help-hint__bubble,
+.help-hint:focus-within .help-hint__bubble,
+.help-hint.is-open .help-hint__bubble {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.route-hazards,
+.route-comparison {
+  margin-top: 0.45rem;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.route-comparison {
+  color: var(--ink-strong);
+  font-weight: 600;
+}
+
+.route-warning {
+  margin-top: 0.55rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--radius-sm);
+  background: var(--hazard-stairs-tint);
+  border: 1px solid var(--hazard-stairs);
+  color: var(--amber-deep);
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.directions li.is-stairs {
+  background: var(--hazard-stairs-tint);
+}
+
+.directions li.is-stairs::before {
+  background: var(--hazard-stairs);
+  color: #fff;
+}
+
+.directions li.is-crosswalk {
+  background: var(--hazard-crosswalk-tint);
+}
+
+.directions li.is-crosswalk::before {
+  background: var(--hazard-crosswalk);
+  color: #fff;
+}
+
+/* ==========================================================================
+   요약 지표
+   ========================================================================== */
+
+.summary-grid {
+  margin-top: 1.1rem;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.6rem;
+}
+
+.summary-grid article {
+  padding: 0.9rem 0.7rem;
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  text-align: center;
+}
+
+.summary-grid span {
+  display: block;
   font-size: 0.72rem;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(0, 0, 0, 0.1);
+  font-weight: 600;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.summary-grid strong {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--ink);
+  font-family: var(--font-mono);
+}
+
+.button-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+}
+
+/* ==========================================================================
+   안내 문구 · 단계 목록
+   ========================================================================== */
+
+.guidance-card {
+  margin: 1.1rem 0 0;
+  min-height: 72px;
+  padding: 1rem 1.2rem;
+  border-radius: var(--radius-md);
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--ink);
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.45;
+  display: flex;
+  align-items: center;
+}
+
+.gps-debug {
+  margin: 0.6rem 0 0;
+  padding: 0.75rem 0.9rem;
+  border-radius: var(--radius-sm);
+  background: var(--field);
+  border: 1px dashed var(--line);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.5rem 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+.gps-debug > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.gps-debug dt {
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.gps-debug dd {
+  margin: 0;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.gps-debug dd[data-level="good"] { color: var(--start-green); }
+.gps-debug dd[data-level="ok"] { color: var(--amber-deep); }
+.gps-debug dd[data-level="poor"] { color: var(--danger); }
+
+.directions {
+  margin: 1.1rem 0 0;
+  padding: 0;
+  list-style: none;
+  border-radius: var(--radius-md);
+  background: var(--field);
+  border: 1px solid var(--line);
+  counter-reset: dir-step;
+}
+
+.directions li {
+  counter-increment: dir-step;
+  position: relative;
+  padding: 0.85rem 1.1rem 0.85rem 3.1rem;
+  border-bottom: 1px solid var(--line-soft);
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+  line-height: 1.5;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.directions li:last-child {
+  border-bottom: none;
+}
+
+.directions li:hover {
+  background: var(--line-soft);
+}
+
+.directions li:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+
+.directions li.is-active-step {
+  background: rgba(47, 111, 94, 0.12);
+}
+
+.directions li.is-active-step::before {
+  background: var(--start-green);
+  color: #fff;
+}
+
+.directions li::before {
+  content: counter(dir-step);
+  position: absolute;
+  left: 1rem;
+  top: 0.9rem;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--line-soft);
+  color: var(--ink);
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 20px;
+  text-align: center;
+  font-family: var(--font-mono);
+}
+
+.directions strong {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+/* ==========================================================================
+   햅틱 로그 · 센서 · 비상 시뮬레이터
+   ========================================================================== */
+
+.haptic-panel {
+  margin-top: 1.6rem;
+  padding-top: 1.3rem;
+  border-top: 1px solid var(--line-soft);
 }
 
 .haptic-log {
-  max-height: 260px;
+  max-height: 220px;
   overflow-y: auto;
   margin: 0;
   padding: 0;
@@ -1018,12 +918,11 @@ button:disabled {
 }
 
 .haptic-log li {
-  padding: 0.8rem;
-  border-bottom: 1px solid var(--glass-border-subtle);
-  font-size: 0.85rem;
-  color: var(--system-secondary);
-  line-height: 1.55;
-  letter-spacing: 0;
+  padding: 0.7rem;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  line-height: 1.5;
 }
 
 .haptic-log li:last-child {
@@ -1031,234 +930,170 @@ button:disabled {
 }
 
 .haptic-log code {
-  color: var(--apple-blue);
-  background: var(--apple-blue-subtle);
-  padding: 0.2rem 0.5rem;
+  color: var(--ink-strong);
+  background: var(--line-soft);
+  padding: 0.15rem 0.45rem;
   border-radius: var(--radius-xs);
-  font-size: 0.82rem;
+  font-size: 0.78rem;
 }
-
-/* ==========================================================================
-   Sensor Grid & Emergency Hardware Simulator
-   ========================================================================== */
 
 .sensor-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 0.9rem;
-  margin-bottom: 1.4rem;
+  gap: 0.75rem;
+  margin-bottom: 1.1rem;
 }
 
 .sensor-grid label {
   display: flex;
   flex-direction: column;
-  background: var(--system-inset-bg);
-  padding: 0.9rem 1.1rem;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--glass-border-subtle);
-  font-size: 0.82rem;
+  background: var(--field);
+  padding: 0.75rem 0.9rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  font-size: 0.78rem;
   font-weight: 600;
-  color: var(--system-secondary);
-  letter-spacing: 0;
+  color: var(--ink-soft);
 }
 
 .sensor-grid input {
   width: 100%;
-  margin-top: 0.45rem;
+  margin-top: 0.4rem;
   font-family: var(--font-mono);
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-weight: 700;
   background: transparent;
   border: none;
-  border-top: 1px solid var(--glass-border-subtle);
+  border-top: 1px solid var(--line);
   border-radius: 0;
-  padding: 0.4rem 0 0;
+  padding: 0.35rem 0 0;
   min-height: unset;
-  color: var(--system-label);
+  color: var(--ink);
   outline: none;
 }
 
 .sensor-grid input:focus {
   box-shadow: none;
-  border-color: var(--apple-blue);
+  border-color: var(--ink);
   background: transparent;
 }
 
 .sensor-status {
-  margin-top: 1.4rem;
+  margin-top: 1.1rem;
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 0.75rem;
+  gap: 0.6rem;
 }
 
 .sensor-chip {
-  padding: 0.9rem 1.1rem;
-  border-radius: var(--radius-md);
-  background: var(--system-card-solid);
-  border: 1px solid var(--glass-border-subtle);
+  padding: 0.75rem 0.9rem;
+  border-radius: var(--radius-sm);
+  background: var(--field);
+  border: 1px solid var(--line);
   font-family: var(--font-mono);
-  font-size: 0.88rem;
-  color: var(--system-secondary);
+  font-size: 0.84rem;
+  color: var(--ink-soft);
 }
 
 .sensor-chip.warning {
-  border-color: var(--apple-orange);
-  background: var(--apple-orange-subtle);
-  color: var(--apple-orange);
+  border-color: var(--hazard-stairs);
+  background: var(--hazard-stairs-tint);
+  color: var(--hazard-stairs);
   font-weight: 700;
 }
 
 .sensor-chip.critical {
-  border-color: var(--apple-red);
-  background: var(--apple-red-subtle);
-  color: var(--apple-red);
+  border-color: var(--hazard-crosswalk);
+  background: var(--hazard-crosswalk-tint);
+  color: var(--hazard-crosswalk);
   font-weight: 700;
 }
 
 .emergency-simulator {
-  margin-top: 1.8rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid var(--glass-border-subtle);
+  margin-top: 1.5rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--line-soft);
 }
 
 .emergency-simulator h3 {
-  font-size: 1rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  color: var(--system-label);
-  margin: 0 0 0.35rem;
+  margin: 0 0 0.3rem;
 }
 
 .danger-button {
   width: 100%;
-  margin-top: 0.9rem;
-  background: var(--apple-red);
+  margin-top: 0.8rem;
+  background: var(--hazard-crosswalk);
   color: #ffffff;
-  font-weight: 700;
-  box-shadow: 0 4px 14px var(--apple-red-glow);
 }
 
 .danger-button:hover:not(:disabled) {
-  background: var(--apple-red-hover);
-  box-shadow: 0 6px 22px var(--apple-red-glow);
+  background: #a3281f;
 }
 
 /* ==========================================================================
    Footer
    ========================================================================== */
 
-footer {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.3rem;
-  margin-left: 15rem;
-  padding: 1.75rem 2rem;
-  background: var(--system-card-bg);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border-top: 1px solid var(--glass-border-subtle);
-  color: var(--system-secondary);
-  font-size: 0.86rem;
-  line-height: 1.55;
-  letter-spacing: 0;
-  text-align: center;
+.panel__footer {
+  margin-top: 1.6rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--line-soft);
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
 }
 
-footer strong {
-  color: var(--system-label);
-  font-weight: 700;
-  font-size: 0.9rem;
-  letter-spacing: -0.01em;
+.panel__footer strong {
   display: block;
+  color: var(--ink-soft);
+  font-weight: 700;
+  font-size: 0.82rem;
+  margin-bottom: 0.2rem;
 }
 
 /* ==========================================================================
-   Responsive Adaptations
+   데스크톱: 패널을 좌측 고정 칼럼으로
    ========================================================================== */
 
-/* 좁은 화면: 사이드바를 상단 가로 바로, 지도 패널을 본문 아래로 */
-@media (max-width: 1024px) {
-  .sidebar {
-    position: sticky;
-    inset: 0 0 auto 0;
-    width: auto;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    padding: 0.85rem 1.25rem;
-    border-right: none;
-    border-bottom: 1px solid var(--glass-border-subtle);
+@media (min-width: 881px) {
+  #map.map-layer {
+    left: var(--panel-width);
   }
 
-  .sidebar__top {
-    flex-direction: row;
-    align-items: center;
-    gap: 0.85rem;
+  .panel {
+    left: 0;
+    right: auto;
+    top: 0;
+    bottom: 0;
+    width: var(--panel-width);
+    max-height: none;
+    border-radius: 0;
+    border-right: 1px solid var(--line);
+    box-shadow: none;
+  }
+
+  .panel.is-collapsed {
+    max-height: none;
+  }
+
+  .panel__toggle {
+    display: none;
+  }
+
+  .panel__brand {
+    padding: 1.4rem 1.5rem 0.9rem;
   }
 
   .tab-rail {
-    flex-direction: row;
-    gap: 0.4rem;
+    padding: 0 1.5rem 0.9rem;
   }
 
-  .tab-button {
-    min-height: 46px;
-    padding: 0.55rem 0.9rem;
-  }
-
-  .layout {
-    margin-left: 0;
-    padding: 1.25rem 1rem 4rem;
-    grid-template-columns: 1fr;
-  }
-
-  .emergency-banner {
-    position: sticky;
-    top: 0.75rem;
-    left: auto;
-    right: auto;
-    margin: 0 1rem;
-  }
-
-  .context-column {
-    position: static;
-  }
-
-  .tab-content-column {
-    max-width: none;
-  }
-
-  footer {
-    margin-left: 0;
-    padding: 1.75rem 2rem;
+  .panel__scroll {
+    padding: 0.3rem 1.5rem 2rem;
   }
 }
 
-@media (max-width: 640px) {
-  .sidebar {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.85rem;
-  }
-
-  .sidebar__top {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .tab-rail {
-    width: 100%;
-  }
-
-  .tab-button {
-    flex: 1;
-    justify-content: center;
-  }
-
+@media (max-width: 480px) {
   .search-row,
   .button-pair,
   .sensor-grid,
@@ -1272,17 +1107,6 @@ footer strong {
 
   .summary-grid {
     grid-template-columns: 1fr;
-  }
-}
-
-/* 터치 기기(휴대폰·태블릿): 스크롤 중 backdrop-filter 재계산이 버벅임의 큰 원인.
-   유리 질감을 불투명 배경으로 대체해 스크롤을 매끄럽게 한다. */
-@media (hover: none) {
-  .glass-card,
-  footer {
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    background: var(--system-card-solid);
   }
 }
 

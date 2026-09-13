@@ -19,11 +19,11 @@ const state = {
 
 // 위험 구간(계단·횡단보도)을 지도에 상시 표시할 색 — 성격이 다른 위험이라 색을 구분한다.
 const HAZARD_LINE_COLORS = {
-  STAIRS: "#ff9500",
-  CROSSWALK: "#ff3b30",
+  STAIRS: "#d9730d",
+  CROSSWALK: "#c1352b",
 };
 // 안내 단계를 클릭했을 때 그 구간만 덧그리는 강조색.
-const STEP_HIGHLIGHT_COLOR = "#0a84ff";
+const STEP_HIGHLIGHT_COLOR = "#2f6f5e";
 
 const elements = {
   systemStatus: document.querySelector("#system-status"),
@@ -58,6 +58,7 @@ const elements = {
   emergencyTime: document.querySelector("#emergency-time"),
   emergencyAck: document.querySelector("#emergency-ack"),
   emergencyTrigger: document.querySelector("#emergency-trigger"),
+  panelToggle: document.querySelector("#panel-toggle"),
 };
 
 function switchTab(tabName) {
@@ -149,8 +150,24 @@ function bindEvents() {
   elements.emergencyTrigger.addEventListener("click", triggerEmergency);
   elements.emergencyAck.addEventListener("click", acknowledgeEmergency);
   bindHelpHints();
+  bindPanelToggle();
   pollEmergency();
   setInterval(pollEmergency, 4000);
+
+  // 지도가 전체 화면을 차지하므로, 창 크기가 바뀌면(모바일 회전 포함) 카카오맵도 다시 그려야 한다.
+  window.addEventListener("resize", () => {
+    if (state.map) state.map.relayout();
+  });
+}
+
+// 모바일 하단 시트: 손잡이를 탭하면 펼침/접힘 전환 (데스크톱에서는 CSS로 숨김 처리됨).
+function bindPanelToggle() {
+  const panel = elements.panelToggle?.closest(".panel");
+  if (!elements.panelToggle || !panel) return;
+  elements.panelToggle.addEventListener("click", () => {
+    const collapsed = panel.classList.toggle("is-collapsed");
+    elements.panelToggle.setAttribute("aria-expanded", String(!collapsed));
+  });
 }
 
 // 회색 안내 문구를 ? 아이콘 뒤로 접어두고, 호버(데스크톱) 또는 클릭(터치)으로 펼친다.
@@ -524,7 +541,7 @@ function drawRoute(route) {
     map: state.map,
     path,
     strokeWeight: 7,
-    strokeColor: "#0f6e56",
+    strokeColor: "#17303d",
     strokeOpacity: 0.95,
     strokeStyle: "solid",
   });
@@ -548,8 +565,8 @@ function drawRoute(route) {
   });
 
   [
-    { place: route.start, color: "#0b8f5f", title: "출발" },
-    { place: route.destination, color: "#ff3b30", title: "도착" },
+    { place: route.start, color: "#2f6f5e", title: "출발" },
+    { place: route.destination, color: "#17303d", title: "도착" },
   ].forEach(({ place, color, title }) => {
     state.markers.push(
       new window.kakao.maps.Marker({

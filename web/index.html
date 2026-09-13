@@ -3,44 +3,22 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#f2f2f6" />
+    <meta name="theme-color" content="#ffffff" />
     <title>WAYBAND · 햅틱 보행 내비게이션</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2/dist/tabler-icons.min.css" />
-    <link rel="stylesheet" href="/static/styles.css?v=step-endpoint" />
+    <link rel="stylesheet" href="/static/styles.css?v=map-forward" />
   </head>
   <body>
     <a class="skip-link" href="#main-content">본문으로 바로가기</a>
 
-    <!-- Layered Ambient Glows -->
-    <div class="blob blob-amber" aria-hidden="true"></div>
-    <div class="blob blob-teal" aria-hidden="true"></div>
-
-    <!-- 좌측 고정 사이드바: 브랜드 + 상태 + 화면 전환 탭 -->
-    <nav class="sidebar" aria-label="주 메뉴">
-      <div class="sidebar__top">
-        <img src="/static/assets/logo.png" alt="WAYBAND" class="logo" />
-        <div id="system-status" class="status-pill" role="status" aria-live="polite">
-          시스템 준비 중
-        </div>
-      </div>
-      <div class="tab-rail" role="tablist" aria-label="화면 전환">
-        <button type="button" class="tab-button is-active" data-tab="kakao" title="경로 안내">
-          <i class="ti ti-map-pin" aria-hidden="true"></i>
-          <span class="tab-label">경로</span>
-        </button>
-        <button type="button" class="tab-button" data-tab="sensor" title="센서 및 시뮬레이터">
-          <i class="ti ti-activity" aria-hidden="true"></i>
-          <span class="tab-label">센서</span>
-        </button>
-      </div>
-    </nav>
+    <!-- 전체 화면을 채우는 지도 — 나머지 UI는 그 위에 얹힌다 -->
+    <div id="map" class="map-layer" aria-label="카카오 보행 지도"></div>
 
     <!-- Dynamic Island Alert Banner -->
     <div
@@ -58,16 +36,37 @@
       <button id="emergency-ack" type="button">확인</button>
     </div>
 
-    <!-- Main Workspace Layout -->
-    <main id="main-content" class="layout">
-      <!-- Primary Content Column -->
-      <div class="tab-content-column">
+    <!-- 데스크톱: 좌측 고정 패널 / 모바일: 하단 시트로 전환되는 컨트롤 패널 -->
+    <main id="main-content" class="panel">
+      <button type="button" id="panel-toggle" class="panel__toggle" aria-expanded="true" aria-controls="panel-scroll">
+        <span class="panel__handle" aria-hidden="true"></span>
+      </button>
+
+      <div class="panel__brand">
+        <img src="/static/assets/logo.png" alt="WAYBAND" class="logo" />
+        <div id="system-status" class="status-pill" role="status" aria-live="polite">
+          시스템 준비 중
+        </div>
+      </div>
+
+      <div class="tab-rail" role="tablist" aria-label="화면 전환">
+        <button type="button" class="tab-button is-active" data-tab="kakao" title="경로 안내">
+          <i class="ti ti-map-pin" aria-hidden="true"></i>
+          <span class="tab-label">경로</span>
+        </button>
+        <button type="button" class="tab-button" data-tab="sensor" title="센서 및 시뮬레이터">
+          <i class="ti ti-activity" aria-hidden="true"></i>
+          <span class="tab-label">센서</span>
+        </button>
+      </div>
+
+      <div id="panel-scroll" class="panel__scroll">
         <!-- 카카오 자동 경로 + 실시간 안내 패널 -->
-        <section class="glass-card tab-panel is-active" id="tab-kakao" aria-labelledby="route-heading">
+        <section class="tab-panel is-active" id="tab-kakao" aria-labelledby="route-heading">
           <div class="section-heading">
             <div>
               <h2 id="route-heading">경로 안내</h2>
-              <p>출발지와 도착지를 검색하여 안전한 보행 경로를 생성합니다.</p>
+              <p id="map-caption">출발지와 도착지를 선택하세요.</p>
             </div>
           </div>
 
@@ -166,7 +165,6 @@
           <p id="route-hazards" class="route-hazards" aria-live="polite" hidden></p>
           <p id="route-comparison" class="route-comparison" aria-live="polite" hidden></p>
 
-          <!-- Apple Health Style Summary Metric Cards -->
           <div id="route-summary" class="summary-grid" hidden>
             <article>
               <span>총 거리</span>
@@ -182,7 +180,6 @@
             </article>
           </div>
 
-          <!-- GPS Guidance Actions -->
           <div class="button-pair" style="margin-top: 1.4rem">
             <button id="start-navigation" type="button" class="primary" disabled>
               <i class="ti ti-navigation" aria-hidden="true"></i> GPS 안내 시작
@@ -192,7 +189,6 @@
             </button>
           </div>
 
-          <!-- Turn-by-Turn Guidance -->
           <div id="next-guidance" class="guidance-card" aria-live="assertive">
             경로를 먼저 생성해 주세요.
           </div>
@@ -210,7 +206,7 @@
         </section>
 
         <!-- 센서 · 진동 텔레메트리 패널 -->
-        <section class="glass-card tab-panel" id="tab-sensor" aria-labelledby="sensor-heading">
+        <section class="tab-panel" id="tab-sensor" aria-labelledby="sensor-heading">
           <div class="section-heading">
             <div>
               <h2 id="sensor-heading">ToF 장애물 감지 시뮬레이터</h2>
@@ -254,24 +250,10 @@
             </button>
           </div>
         </section>
-      </div>
-
-      <!-- Secondary Context Column (Map & Haptic Feed) -->
-      <div class="context-column">
-        <!-- Interactive Map Panel -->
-        <section class="glass-card map-panel" aria-labelledby="map-heading">
-          <div class="section-heading compact">
-            <div>
-              <h2 id="map-heading">보행 지도</h2>
-              <p id="map-caption">출발지와 도착지를 선택하세요.</p>
-            </div>
-          </div>
-          <div id="map" aria-label="카카오 보행 지도"></div>
-        </section>
 
         <!-- Haptic Command Log Panel -->
-        <section class="glass-card haptic-panel" aria-labelledby="haptic-heading">
-          <div class="section-heading compact">
+        <section class="haptic-panel" aria-labelledby="haptic-heading">
+          <div class="section-heading">
             <div>
               <h2 id="haptic-heading">햅틱 진동 피드</h2>
               <p>벨트 및 손목 밴드로 송신되는 진동 프로토콜 실시간 로그입니다.</p>
@@ -281,14 +263,14 @@
             <li>대기 중: 아직 생성된 진동 명령이 없습니다.</li>
           </ul>
         </section>
+
+        <footer class="panel__footer">
+          <strong>안전 및 접근성 안내</strong>
+          <span>본 시스템은 프로토타입 연구용이며 흰지팡이 및 안내견 등 표준 보행 보조 수단을 보완하도록 설계되었습니다.</span>
+        </footer>
       </div>
     </main>
 
-    <!-- Accessible Apple Footer -->
-    <footer>
-      <strong>안전 및 접근성 안내</strong>
-      <span>본 시스템은 프로토타입 연구용이며 흰지팡이 및 안내견 등 표준 보행 보조 수단을 보완하도록 설계되었습니다.</span>
-    </footer>
-    <script src="/static/app.js?v=step-endpoint" defer></script>
+    <script src="/static/app.js?v=map-forward" defer></script>
   </body>
 </html>
