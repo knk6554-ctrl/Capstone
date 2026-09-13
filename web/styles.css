@@ -13,6 +13,7 @@
   --muted: #8a938e;
 
   --paper: #ffffff;
+  --paper-translucent: rgba(255, 255, 255, 0.82);
   --field: #f6f7f5;
   --mist: #dde4df;
 
@@ -51,6 +52,7 @@
     --muted: #6f7d78;
 
     --paper: #121c1a;
+    --paper-translucent: rgba(18, 28, 26, 0.82);
     --field: #1a2624;
     --mist: #0d1614;
 
@@ -223,7 +225,7 @@ p {
   }
 
   .eta-bar {
-    left: calc((100% + var(--panel-width)) / 2);
+    left: calc((100% + var(--panel-width) + 1rem) / 2);
     bottom: 1.5rem;
   }
 }
@@ -304,7 +306,7 @@ p {
 
 @media (min-width: 881px) {
   .emergency-banner {
-    left: calc(var(--panel-width) + 1.25rem);
+    left: calc(var(--panel-width) + 1rem + 1.25rem);
     right: 1.25rem;
   }
 }
@@ -860,20 +862,39 @@ button:disabled {
    안내 문구 · 단계 목록
    ========================================================================== */
 
+/* 평소엔 "대기 중" 느낌의 조용한 아웃라인, 실제 GPS 안내 중에만(.is-active) 잉크색
+   배너로 굵게 전환 — 항상 같은 카드로 떠 있던 이전 디자인과 달리 상태가 다르게 보인다. */
 .guidance-card {
   margin: 1.1rem 0 0;
-  min-height: 72px;
-  padding: 1rem 1.2rem;
+  min-height: 60px;
+  padding: 0.8rem 1.1rem;
   border-radius: var(--radius-md);
-  background: var(--field);
-  border: 1px solid var(--line);
-  border-left: 4px solid var(--ink);
-  color: var(--ink);
-  font-size: 1rem;
-  font-weight: 700;
-  line-height: 1.45;
+  background: transparent;
+  border: 1px dashed var(--line);
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.5;
   display: flex;
   align-items: center;
+  gap: 0.65rem;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease,
+    padding 0.2s ease;
+}
+
+.guidance-card i {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.guidance-card.is-active {
+  border-style: solid;
+  border-color: var(--ink);
+  background: var(--ink);
+  color: #ffffff;
+  font-size: 1.05rem;
+  font-weight: 700;
+  padding: 1.05rem 1.25rem;
 }
 
 .gps-debug {
@@ -1134,20 +1155,22 @@ button:disabled {
    ========================================================================== */
 
 @media (min-width: 881px) {
-  #map.map-layer {
-    left: var(--panel-width);
-  }
-
+  /* 지도는 화면 전체에 그대로 깔아두고, 패널은 그 위에 살짝 뜬 반투명 알약 카드로 놓는다.
+     배경만 반투명 + 블러 처리해서 뒤 지도가 살짝 비치되, 글자 자체는 불투명이라 가독성은
+     그대로다. */
   .panel {
-    left: 0;
+    left: 1rem;
     right: auto;
-    top: 0;
-    bottom: 0;
+    top: 1rem;
+    bottom: 1rem;
     width: var(--panel-width);
     height: auto;
-    border-radius: 0;
-    border-right: 1px solid var(--line);
-    box-shadow: none;
+    border-radius: 26px;
+    border: 1px solid var(--line);
+    background: var(--paper-translucent);
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    box-shadow: 0 16px 40px rgba(23, 48, 61, 0.18), 0 2px 10px rgba(23, 48, 61, 0.08);
   }
 
   .panel.is-collapsed {

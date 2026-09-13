@@ -45,6 +45,7 @@ const elements = {
   startNavigation: document.querySelector("#start-navigation"),
   stopNavigation: document.querySelector("#stop-navigation"),
   nextGuidance: document.querySelector("#next-guidance"),
+  nextGuidanceText: document.querySelector("#next-guidance-text"),
   gpsDebug: document.querySelector("#gps-debug"),
   gpsCoord: document.querySelector("#gps-coord"),
   gpsAccuracy: document.querySelector("#gps-accuracy"),
@@ -78,6 +79,15 @@ function switchTab(tabName) {
 function setStatus(message, isError = false) {
   elements.systemStatus.textContent = message;
   elements.systemStatus.style.color = isError ? "var(--danger)" : "var(--amber-deep)";
+}
+
+// 다음 안내 문구 갱신. active를 넘기면 "대기/안내 준비" 조용한 톤 ↔ "실제 안내 중" 굵은
+// 배너 톤을 전환하고, 넘기지 않으면(에러 메시지 등) 지금 톤을 그대로 유지한다.
+function setGuidance(text, active) {
+  elements.nextGuidanceText.textContent = text;
+  if (active !== undefined) {
+    elements.nextGuidance.classList.toggle("is-active", active);
+  }
 }
 
 async function api(url, options = {}) {
@@ -783,7 +793,7 @@ function renderRoute(route) {
 
     elements.directions.appendChild(item);
   });
-  elements.nextGuidance.textContent = "GPS 안내를 시작하면 다음 회전까지 거리를 표시합니다.";
+  setGuidance("GPS 안내를 시작하면 다음 회전까지 거리를 표시합니다.", false);
   elements.gpsDebug.hidden = true;
   state.gpsFixCount = 0;
 }
@@ -866,7 +876,7 @@ function focusRouteStep(route, index, item) {
 function startNavigation() {
   if (!state.route) return;
   if (!window.isSecureContext || !navigator.geolocation) {
-    elements.nextGuidance.textContent = locationErrorMessage();
+    setGuidance(locationErrorMessage());
     setStatus("현위치 사용 불가", true);
     return;
   }
@@ -876,7 +886,7 @@ function startNavigation() {
   state.watchId = navigator.geolocation.watchPosition(
     updateLocation,
     (error) => {
-      elements.nextGuidance.textContent = locationErrorMessage(error);
+      setGuidance(locationErrorMessage(error));
       elements.gpsOffRoute.textContent = `신호 오류 (${error.code})`;
       setStatus("GPS 오류", true);
     },
@@ -935,7 +945,7 @@ async function updateLocation(position) {
     renderGpsDebug(position, result);
     updateEtaBar(result);
     if (result.completed) {
-      elements.nextGuidance.textContent = "목적지에 도착했습니다.";
+      setGuidance("목적지에 도착했습니다.", true);
       stopNavigation();
     } else {
       const next = result.nextInstruction;
@@ -946,13 +956,14 @@ async function updateLocation(position) {
           : next.maneuver === "CROSSWALK"
             ? "🚸 횡단보도 · "
             : "";
-      elements.nextGuidance.textContent = `${routeState}${hazardTag}${Math.round(
-        next.distanceMeters,
-      )}m 후 ${next.guidance}`;
+      setGuidance(
+        `${routeState}${hazardTag}${Math.round(next.distanceMeters)}m 후 ${next.guidance}`,
+        true,
+      );
     }
     appendHapticCommands(result.commands);
   } catch (error) {
-    elements.nextGuidance.textContent = error.message;
+    setGuidance(error.message);
   }
 }
 
