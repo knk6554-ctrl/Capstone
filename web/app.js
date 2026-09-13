@@ -6,6 +6,8 @@ const state = {
   markers: [],
   userMarker: null,
   stepMarker: null,
+  hazardLines: [],
+  stepHighlightLine: null,
   selected: { start: null, destination: null },
   route: null,
   watchId: null,
@@ -13,6 +15,14 @@ const state = {
   gpsFixCount: 0,
   accuracyCircle: null,
 };
+
+// 위험 구간(계단·횡단보도)을 지도에 상시 표시할 색 — 성격이 다른 위험이라 색을 구분한다.
+const HAZARD_LINE_COLORS = {
+  STAIRS: "#ff9500",
+  CROSSWALK: "#ff3b30",
+};
+// 안내 단계를 클릭했을 때 그 구간만 덧그리는 강조색.
+const STEP_HIGHLIGHT_COLOR = "#0a84ff";
 
 const elements = {
   systemStatus: document.querySelector("#system-status"),
@@ -495,6 +505,12 @@ function drawRoute(route) {
     state.stepMarker.setMap(null);
     state.stepMarker = null;
   }
+  if (state.stepHighlightLine) {
+    state.stepHighlightLine.setMap(null);
+    state.stepHighlightLine = null;
+  }
+  state.hazardLines.forEach((line) => line.setMap(null));
+  state.hazardLines = [];
 
   const path = route.path.map(
     (point) => new window.kakao.maps.LatLng(point.latitude, point.longitude),
@@ -506,6 +522,24 @@ function drawRoute(route) {
     strokeColor: "#0f6e56",
     strokeOpacity: 0.95,
     strokeStyle: "solid",
+  });
+
+  // 계단·횡단보도 구간은 클릭 전부터 위험색으로 상시 표시 — 기본 경로선 위에 덧그린다.
+  route.steps.forEach((step) => {
+    const hazardColor = HAZARD_LINE_COLORS[step.maneuver];
+    if (!hazardColor || !step.path || step.path.length < 2) return;
+    state.hazardLines.push(
+      new window.kakao.maps.Polyline({
+        map: state.map,
+        path: step.path.map(
+          (point) => new window.kakao.maps.LatLng(point.latitude, point.longitude),
+        ),
+        strokeWeight: 7,
+        strokeColor: hazardColor,
+        strokeOpacity: 1,
+        strokeStyle: "solid",
+      }),
+    );
   });
 
   [
@@ -582,8 +616,8 @@ function renderRoute(route) {
   state.gpsFixCount = 0;
 }
 
-// 안내 단계 클릭 시: 지도를 해당 좌표로 pan, 이전 단계 마커는 제거하고
-// 클릭한 단계에만 번호 마커를 새로 띄워 팝 애니메이션으로 강조한다.
+// 안내 단계 클릭 시: 지도를 해당 좌표로 pan, 그 구간만 강조색 선으로 덧그리고
+// 번호 마커를 띄운다. 나머지 경로선은 흐리게 처리해 선택 구간을 도드라지게 한다.
 function focusRouteStep(route, index, item) {
   const step = route.steps?.[index];
   if (!step?.location || !state.map || !window.kakao?.maps) return;
@@ -599,10 +633,34 @@ function focusRouteStep(route, index, item) {
   );
   state.map.panTo(position);
 
+  // 선택 구간을 도드라지게: 기본 경로선 + 위험 구간선을 흐리게 낮춘다.
+  // (새 경로를 만들면 drawRoute가 선을 새로 그리므로 자연히 원래 밝기로 돌아온다.)
+  if (state.routeLine) state.routeLine.setOptions({ strokeOpacity: 0.25 });
+  state.hazardLines.forEach((line) => line.setOptions({ strokeOpacity: 0.3 }));
+
   if (state.stepMarker) {
     state.stepMarker.setMap(null);
     state.stepMarker = null;
   }
+  if (state.stepHighlightLine) {
+    state.stepHighlightLine.setMap(null);
+    state.stepHighlightLine = null;
+  }
+
+  if (step.path?.length >= 2) {
+    state.stepHighlightLine = new window.kakao.maps.Polyline({
+      map: state.map,
+      path: step.path.map(
+        (point) => new window.kakao.maps.LatLng(point.latitude, point.longitude),
+      ),
+      strokeWeight: 9,
+      strokeColor: STEP_HIGHLIGHT_COLOR,
+      strokeOpacity: 1,
+      strokeStyle: "solid",
+      zIndex: 20,
+    });
+  }
+
   // 매번 새 오버레이(=새 DOM 노드)를 만들어야 팝 애니메이션이 다시 재생된다.
   state.stepMarker = new window.kakao.maps.CustomOverlay({
     map: state.map,
