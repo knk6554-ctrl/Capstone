@@ -879,6 +879,8 @@ button:disabled {
   font-size: 0.92rem;
   line-height: 1.55;
   letter-spacing: 0;
+  cursor: pointer;
+  transition: background 0.15s ease;
 }
 
 .directions li:last-child {
@@ -887,6 +889,22 @@ button:disabled {
 
 .directions li:hover {
   background: var(--system-card-solid);
+}
+
+.directions li:focus-visible {
+  outline: 2px solid var(--apple-blue);
+  outline-offset: -2px;
+  border-radius: var(--radius-xs);
+}
+
+/* 클릭해서 지도에서 보고 있는 단계 강조 */
+.directions li.is-active-step {
+  background: var(--apple-blue-subtle);
+}
+
+.directions li.is-active-step::before {
+  background: var(--apple-blue);
+  color: #ffffff;
 }
 
 .directions li::before {
@@ -946,6 +964,31 @@ button:disabled {
   0% { transform: scale(1); opacity: 0.7; }
   70% { opacity: 0; }
   100% { transform: scale(3); opacity: 0; }
+}
+
+/* 안내 단계 클릭 시에만 나타나는 번호 마커 — 평소엔 DOM에 존재하지 않는다 */
+.map-step-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--apple-blue);
+  color: #ffffff;
+  border: 3px solid #ffffff;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(0, 0, 0, 0.15);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1;
+  animation: map-step-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes map-step-pop {
+  0% { transform: scale(0.3); opacity: 0; }
+  65% { transform: scale(1.18); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
 }
 
 .haptic-log {

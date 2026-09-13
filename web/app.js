@@ -5,6 +5,7 @@ const state = {
   routeLine: null,
   markers: [],
   userMarker: null,
+  stepMarker: null,
   selected: { start: null, destination: null },
   route: null,
   watchId: null,
@@ -490,6 +491,10 @@ function drawRoute(route) {
     state.accuracyCircle.setMap(null);
     state.accuracyCircle = null;
   }
+  if (state.stepMarker) {
+    state.stepMarker.setMap(null);
+    state.stepMarker = null;
+  }
 
   const path = route.path.map(
     (point) => new window.kakao.maps.LatLng(point.latitude, point.longitude),
@@ -550,18 +555,63 @@ function renderRoute(route) {
   elements.summarySteps.textContent = `${route.steps.length}개`;
   elements.mapCaption.textContent = `${route.start.name} → ${route.destination.name}`;
   elements.directions.replaceChildren();
-  route.steps.forEach((step) => {
+  route.steps.forEach((step, index) => {
     const item = document.createElement("li");
     if (step.maneuver === "STAIRS") item.className = "is-stairs";
     else if (step.maneuver === "CROSSWALK") item.className = "is-crosswalk";
     const maneuver = document.createElement("strong");
     maneuver.textContent = `[${MANEUVER_LABELS[step.maneuver] || step.maneuver}] `;
     item.append(maneuver, step.guidance || `${step.distanceMeters}m 이동`);
+
+    // 클릭(또는 키보드 포커스 + Enter/Space)하면 지도가 해당 단계 위치로 이동하고
+    // 단계 번호가 적힌 마커가 그 위치에만 나타난다.
+    item.tabIndex = 0;
+    item.setAttribute("role", "button");
+    item.setAttribute("aria-label", `${index + 1}번째 안내 단계를 지도에서 보기`);
+    item.addEventListener("click", () => focusRouteStep(route, index, item));
+    item.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      focusRouteStep(route, index, item);
+    });
+
     elements.directions.appendChild(item);
   });
   elements.nextGuidance.textContent = "GPS 안내를 시작하면 다음 회전까지 거리를 표시합니다.";
   elements.gpsDebug.hidden = true;
   state.gpsFixCount = 0;
+}
+
+// 안내 단계 클릭 시: 지도를 해당 좌표로 pan, 이전 단계 마커는 제거하고
+// 클릭한 단계에만 번호 마커를 새로 띄워 팝 애니메이션으로 강조한다.
+function focusRouteStep(route, index, item) {
+  const step = route.steps?.[index];
+  if (!step?.location || !state.map || !window.kakao?.maps) return;
+
+  elements.directions
+    .querySelectorAll("li.is-active-step")
+    .forEach((li) => li.classList.remove("is-active-step"));
+  item.classList.add("is-active-step");
+
+  const position = new window.kakao.maps.LatLng(
+    step.location.latitude,
+    step.location.longitude,
+  );
+  state.map.panTo(position);
+
+  if (state.stepMarker) {
+    state.stepMarker.setMap(null);
+    state.stepMarker = null;
+  }
+  // 매번 새 오버레이(=새 DOM 노드)를 만들어야 팝 애니메이션이 다시 재생된다.
+  state.stepMarker = new window.kakao.maps.CustomOverlay({
+    map: state.map,
+    position,
+    content: `<div class="map-step-marker">${index + 1}</div>`,
+    xAnchor: 0.5,
+    yAnchor: 0.5,
+    zIndex: 30,
+  });
 }
 
 function startNavigation() {
