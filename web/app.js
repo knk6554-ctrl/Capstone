@@ -104,11 +104,33 @@ function loadKakaoMap(javascriptKey) {
           window.kakao.maps.ControlPosition.RIGHT,
         );
         resolve();
+        centerOnCurrentLocation();
       });
     };
     script.onerror = () => reject(new Error("카카오 지도 SDK를 불러오지 못했습니다."));
     document.head.appendChild(script);
   });
+}
+
+// 지도가 뜨면 기본 좌표 대신 실제 현재 위치로 바로 맞춰 보여준다 — 실패/거부 시 조용히
+// 기본 위치를 그대로 둔다(경로 생성 등 나머지 기능은 위치 권한과 무관하게 동작해야 한다).
+function centerOnCurrentLocation() {
+  if (!window.isSecureContext || !navigator.geolocation || !state.map) return;
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const location = {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracy_meters: position.coords.accuracy,
+      };
+      state.map.setCenter(
+        new window.kakao.maps.LatLng(location.latitude, location.longitude),
+      );
+      updateUserMarker(location);
+    },
+    () => {},
+    { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 },
+  );
 }
 
 async function initialize() {
@@ -157,17 +179,79 @@ function bindEvents() {
   // 지도가 전체 화면을 차지하므로, 창 크기가 바뀌면(모바일 회전 포함) 카카오맵도 다시 그려야 한다.
   window.addEventListener("resize", () => {
     if (state.map) state.map.relayout();
+    // 데스크톱 폭으로 넘어가면 모바일 시트에서 남은 인라인 높이를 지워 CSS(좌측 고정 칼럼)를 되찾는다.
+    if (!isMobilePanelLayout()) {
+      const panel = elements.panelToggle?.closest(".panel");
+      if (panel) panel.style.height = "";
+    }
   });
 }
 
-// 모바일 하단 시트: 손잡이를 탭하면 펼침/접힘 전환 (데스크톱에서는 CSS로 숨김 처리됨).
+// 모바일 하단 시트: 손잡이를 탭하면 펼침/접힘 전환, 위아래로 끌면 원하는 높이로 조절한다.
+// (데스크톱에서는 패널이 좌측 고정 칼럼이라 손잡이 자체가 CSS로 숨겨진다.)
+const SHEET_PEEK_HEIGHT = 132;
+const sheetExpandedHeight = () => Math.round(window.innerHeight * 0.66);
+const isMobilePanelLayout = () => window.matchMedia("(max-width: 880px)").matches;
+
 function bindPanelToggle() {
-  const panel = elements.panelToggle?.closest(".panel");
-  if (!elements.panelToggle || !panel) return;
-  elements.panelToggle.addEventListener("click", () => {
-    const collapsed = panel.classList.toggle("is-collapsed");
-    elements.panelToggle.setAttribute("aria-expanded", String(!collapsed));
+  const toggle = elements.panelToggle;
+  const panel = toggle?.closest(".panel");
+  if (!toggle || !panel) return;
+
+  let dragging = false;
+  let dragged = false;
+  let startY = 0;
+  let startHeight = 0;
+
+  const setPanelHeight = (px) => {
+    const clamped = Math.min(sheetExpandedHeight(), Math.max(SHEET_PEEK_HEIGHT, px));
+    panel.style.height = `${clamped}px`;
+  };
+
+  const setCollapsed = (collapsed) => {
+    panel.classList.toggle("is-collapsed", collapsed);
+    toggle.setAttribute("aria-expanded", String(!collapsed));
+    panel.style.height = `${collapsed ? SHEET_PEEK_HEIGHT : sheetExpandedHeight()}px`;
+  };
+
+  toggle.addEventListener("pointerdown", (event) => {
+    if (!isMobilePanelLayout()) return;
+    dragging = true;
+    dragged = false;
+    startY = event.clientY;
+    startHeight = panel.getBoundingClientRect().height;
+    panel.style.transition = "none";
+    try {
+      toggle.setPointerCapture(event.pointerId);
+    } catch {
+      // 일부 브라우저/포인터 종류는 캡처를 지원하지 않을 수 있다 — 드래그 자체는 계속 동작한다.
+    }
   });
+
+  toggle.addEventListener("pointermove", (event) => {
+    if (!dragging) return;
+    const delta = startY - event.clientY;
+    if (Math.abs(delta) > 4) dragged = true;
+    setPanelHeight(startHeight + delta);
+  });
+
+  const endDrag = () => {
+    if (!dragging) return;
+    dragging = false;
+    panel.style.transition = "";
+    if (!dragged) {
+      // 움직임 없이 그냥 탭한 경우 — 펼침/접힘 전환
+      setCollapsed(!panel.classList.contains("is-collapsed"));
+      return;
+    }
+    // 끌어서 놓은 경우 — 놓은 높이가 중간값보다 크면 펼침, 작으면 접힘으로 스냅
+    const current = panel.getBoundingClientRect().height;
+    const mid = (SHEET_PEEK_HEIGHT + sheetExpandedHeight()) / 2;
+    setCollapsed(current < mid);
+  };
+
+  toggle.addEventListener("pointerup", endDrag);
+  toggle.addEventListener("pointercancel", endDrag);
 }
 
 // 회색 안내 문구를 ? 아이콘 뒤로 접어두고, 호버(데스크톱) 또는 클릭(터치)으로 펼친다.

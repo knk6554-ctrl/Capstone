@@ -299,18 +299,18 @@ p {
   bottom: 0;
   top: auto;
   z-index: 20;
-  max-height: 66vh;
+  height: 66vh;
   display: flex;
   flex-direction: column;
   background: var(--paper);
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   box-shadow: var(--shadow-lg);
   overflow: hidden;
-  transition: max-height 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: height 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .panel.is-collapsed {
-  max-height: 128px;
+  height: 132px;
 }
 
 .panel__toggle {
@@ -318,12 +318,17 @@ p {
   justify-content: center;
   align-items: center;
   width: 100%;
-  min-height: 26px;
-  padding: 10px 0 2px;
+  min-height: 34px;
+  padding: 12px 0;
   background: transparent;
   border: none;
-  cursor: pointer;
+  cursor: grab;
   flex-shrink: 0;
+  touch-action: none;
+}
+
+.panel__toggle:active {
+  cursor: grabbing;
 }
 
 .panel__handle {
@@ -1066,14 +1071,14 @@ button:disabled {
     top: 0;
     bottom: 0;
     width: var(--panel-width);
-    max-height: none;
+    height: auto;
     border-radius: 0;
     border-right: 1px solid var(--line);
     box-shadow: none;
   }
 
   .panel.is-collapsed {
-    max-height: none;
+    height: auto;
   }
 
   .panel__toggle {
