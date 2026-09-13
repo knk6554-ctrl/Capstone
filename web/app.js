@@ -1010,6 +1010,11 @@ async function updateLocation(position) {
   elements.gpsCount.textContent = String(state.gpsFixCount);
   updateUserMarker(location);
   renderGpsDebug(position, null);
+  // "현재 이동 경로" 모드에서는 GPS 신호가 올 때마다 화면이 계속 나를 따라온다(따라가기 모드).
+  // "전체 경로" 모드에서는 화면이 고정돼 있어야 하니 여기서는 움직이지 않는다.
+  if (state.routeViewMode === "live" && state.map && window.kakao?.maps) {
+    state.map.panTo(new window.kakao.maps.LatLng(location.latitude, location.longitude));
+  }
   try {
     const result = await api(`/api/navigation/${state.route.routeId}/location`, {
       method: "POST",
