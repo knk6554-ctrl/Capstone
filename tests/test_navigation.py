@@ -49,6 +49,45 @@ class NavigationTests(unittest.TestCase):
         self.assertEqual(prepare["commands"][0]["pattern"], "PREPARE_TURN")
         self.assertEqual(repeated["commands"], [])
         self.assertEqual(turn_now["commands"][0]["pattern"], "TURN_NOW")
+        self.assertLess(turn_now["commands"][0]["targetAngleDegrees"], 0)
+
+    def test_crosswalk_alerts_once_at_fifteen_meters(self):
+        crossing = Coordinate(127.0005, 37.0005)
+        route = RoutePlan(
+            route_id="crosswalk",
+            start=self.route.start,
+            destination=self.route.destination,
+            total_distance_meters=200,
+            total_time_seconds=180,
+            landing_url="",
+            route_mode="ACCESSIBLE",
+            steps=(
+                RouteStep(
+                    index=0,
+                    guidance="횡단보도입니다",
+                    distance_meters=100,
+                    duration_seconds=90,
+                    location=crossing,
+                    path=(self.route.start.coordinate, crossing),
+                    maneuver=Maneuver.CROSSWALK,
+                ),
+            ),
+            path=(self.route.start.coordinate, crossing, self.route.destination.coordinate),
+        )
+        session = NavigationSession(
+            route,
+            prepare_distance_meters=25,
+            turn_now_distance_meters=8,
+            off_route_distance_meters=35,
+        )
+        near = Coordinate(127.0005, 37.00038)
+
+        first = session.update(near, 3)
+        repeated = session.update(near, 3)
+
+        self.assertEqual(first["commands"][0]["pattern"], "CROSSWALK")
+        self.assertEqual(first["commands"][0]["pulseOnMs"], 500)
+        self.assertEqual(repeated["commands"], [])
 
     def test_missed_turn_does_not_block_arrival_instruction(self):
         session = NavigationSession(

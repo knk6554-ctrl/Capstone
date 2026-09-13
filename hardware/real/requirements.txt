@@ -1,0 +1,4 @@
+bleak>=0.21,<2
+smbus2>=0.4,<1
+sparkfun-qwiic-vl53l1x>=1.0,<2
+sparkfun-qwiic-vl53l5cx>=1.0,<2

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from math import atan2, cos, hypot, radians, sin, sqrt
+from math import atan2, cos, degrees, hypot, radians, sin, sqrt
 from typing import Any
 
 from .haptics import HapticCommand, HapticPattern, HapticTarget
@@ -11,6 +11,7 @@ from .models import Coordinate, Maneuver, RoutePlan
 
 
 EARTH_RADIUS_METERS = 6_371_000.0
+CROSSWALK_NOTICE_METERS = 15.0
 
 
 def haversine_meters(first: Coordinate, second: Coordinate) -> float:
@@ -84,10 +85,55 @@ class NavigationEvent:
     location: Coordinate
     guidance: str
     step_index: int
+    target_angle_degrees: float | None = None
 
 
-# 좌/우/유턴은 25m 준비 진동이 있지만, 횡단보도·계단은 근접 시 한 번만 울린다.
-_NO_PREPARE_MANEUVERS = frozenset({Maneuver.CROSSWALK, Maneuver.STAIRS})
+_NO_PREPARE_MANEUVERS = frozenset({Maneuver.STAIRS})
+
+
+def bearing_degrees(first: Coordinate, second: Coordinate) -> float:
+    """Return a WGS84 initial bearing in degrees clockwise from north."""
+
+    latitude_1 = radians(first.latitude)
+    latitude_2 = radians(second.latitude)
+    longitude_delta = radians(second.longitude - first.longitude)
+    y = sin(longitude_delta) * cos(latitude_2)
+    x = cos(latitude_1) * sin(latitude_2) - sin(latitude_1) * cos(latitude_2) * cos(longitude_delta)
+    return (degrees(atan2(y, x)) + 360.0) % 360.0
+
+
+def signed_turn_degrees(incoming: float, outgoing: float) -> float:
+    """Normalize a turn so left is negative and right is positive."""
+
+    return (outgoing - incoming + 540.0) % 360.0 - 180.0
+
+
+def _target_angle_for(route: RoutePlan, step_index: int) -> float | None:
+    step = route.steps[step_index]
+    if step.maneuver not in {Maneuver.LEFT, Maneuver.RIGHT, Maneuver.UTURN}:
+        return None
+
+    previous_path = route.steps[step_index - 1].path if step_index > 0 else ()
+    if len(previous_path) >= 2 and len(step.path) >= 2:
+        angle = signed_turn_degrees(
+            bearing_degrees(previous_path[-2], previous_path[-1]),
+            bearing_degrees(step.path[0], step.path[1]),
+        )
+        # Sparse path geometry occasionally produces the opposite sign at a
+        # junction. The Kakao maneuver remains authoritative for the side.
+        if step.maneuver is Maneuver.LEFT:
+            angle = -abs(angle)
+        elif step.maneuver is Maneuver.RIGHT:
+            angle = abs(angle)
+        elif abs(angle) < 120:
+            angle = 180.0
+        return max(-180.0, min(180.0, angle))
+
+    if step.maneuver is Maneuver.LEFT:
+        return -90.0
+    if step.maneuver is Maneuver.RIGHT:
+        return 90.0
+    return 180.0
 
 
 def _events_for(route: RoutePlan) -> tuple[NavigationEvent, ...]:
@@ -104,8 +150,9 @@ def _events_for(route: RoutePlan) -> tuple[NavigationEvent, ...]:
             location=step.location,
             guidance=step.guidance,
             step_index=step.index,
+            target_angle_degrees=_target_angle_for(route, index),
         )
-        for step in route.steps
+        for index, step in enumerate(route.steps)
         if step.maneuver in haptic_maneuvers
     ]
     # Always use the selected destination coordinate for arrival. A final Kakao
@@ -145,11 +192,11 @@ def _turn_command(event: NavigationEvent, *, prepare: bool) -> HapticCommand:
             target=HapticTarget.BOTH_WRISTS,
             pattern=HapticPattern.CROSSWALK,
             source="NAVIGATION",
-            message=event.guidance or "횡단보도가 있습니다.",
-            intensity=0.8,
+            message=event.guidance or "앞에 횡단보도가 있습니다. 정지하고 보행 신호를 확인하세요.",
+            intensity=0.75,
             pulse_count=2,
-            pulse_on_ms=300,
-            pulse_off_ms=220,
+            pulse_on_ms=500,
+            pulse_off_ms=300,
         )
     if event.maneuver is Maneuver.STAIRS:
         return HapticCommand(
@@ -177,6 +224,7 @@ def _turn_command(event: NavigationEvent, *, prepare: bool) -> HapticCommand:
         pulse_count=pulse_count,
         pulse_on_ms=220,
         pulse_off_ms=180,
+        target_angle_degrees=(None if prepare else event.target_angle_degrees),
     )
 
 
@@ -203,9 +251,6 @@ class NavigationSession:
             project_onto_polyline_meters(event.location, route.path)[1]
             for event in self.events
         )
-        # 각 단계(step)가 전체 경로에서 몇 m 지점부터 시작하는지 미리 계산해둔다 —
-        # 지도 위 "현재 이동 경로" 자동 강조가 route_progress_meters만 보고도
-        # 지금 몇 번째 단계 구간을 걷고 있는지 바로 알 수 있게 하기 위함.
         self._step_start_meters: list[float] = []
         cumulative = 0.0
         for step in route.steps:
@@ -251,6 +296,11 @@ class NavigationSession:
         while self._event_cursor < len(self.events):
             current_event = self.events[self._event_cursor]
             distance_to_event = haversine_meters(location, current_event.location)
+            if current_event.maneuver is Maneuver.CROSSWALK:
+                if distance_to_event <= CROSSWALK_NOTICE_METERS:
+                    commands.append(_turn_command(current_event, prepare=False))
+                    self._event_cursor += 1
+                break
             if distance_to_event <= self.turn_now_distance_meters:
                 commands.append(_turn_command(current_event, prepare=False))
                 self._event_cursor += 1
@@ -284,8 +334,6 @@ class NavigationSession:
             if next_event is not None
             else None
         )
-        # 남은 거리/시간 — 지도 앱 하단 ETA 바용. 진행률(_route_progress_meters)을
-        # 전체 경로 길이·소요시간에 비례시킨 근사치라 걸음 속도가 크게 변하면 오차가 있다.
         remaining_distance_meters = max(
             0.0, self.route.total_distance_meters - self._route_progress_meters
         )
@@ -296,10 +344,6 @@ class NavigationSession:
             if self.route.total_distance_meters > 0
             else 0.0
         )
-        # 지금 실제로 걷고 있는 단계(step) 번호 — "현재 이동 경로" 자동 강조용.
-        # nextInstruction.stepIndex와는 다르다: 그건 다음 "안내(회전/횡단보도 등)" 이벤트만
-        # 가리켜서 평범한 직진 단계를 건너뛰지만, 이건 route_progress_meters 기준으로
-        # 지금 물리적으로 어느 단계 구간 위에 있는지를 그대로 가리킨다.
         current_step_index = 0
         for index, start_meters in enumerate(self._step_start_meters):
             if self._route_progress_meters >= start_meters:
@@ -321,6 +365,7 @@ class NavigationSession:
                     "maneuver": next_event.maneuver.value,
                     "guidance": next_event.guidance,
                     "distanceMeters": round(next_distance or 0.0, 1),
+                    "targetAngleDegrees": next_event.target_angle_degrees,
                 }
                 if next_event is not None
                 else None

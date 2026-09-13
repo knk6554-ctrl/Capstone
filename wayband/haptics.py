@@ -43,6 +43,7 @@ class HapticCommand:
     pulse_count: int
     pulse_on_ms: int
     pulse_off_ms: int
+    target_angle_degrees: float | None = None
     command_id: str = ""
     created_at: str = ""
 
@@ -51,6 +52,8 @@ class HapticCommand:
             raise ValueError("진동 세기는 0 초과 1 이하이어야 합니다.")
         if self.pulse_count <= 0:
             raise ValueError("진동 횟수는 1회 이상이어야 합니다.")
+        if self.target_angle_degrees is not None and not -180 <= self.target_angle_degrees <= 180:
+            raise ValueError("목표 회전각은 -180~180도 범위여야 합니다.")
         if not self.command_id:
             object.__setattr__(self, "command_id", str(uuid4()))
         if not self.created_at:
@@ -61,7 +64,7 @@ class HapticCommand:
             )
 
     def to_public_dict(self) -> dict[str, Any]:
-        return {
+        result = {
             "commandId": self.command_id,
             "createdAt": self.created_at,
             "target": self.target.value,
@@ -73,6 +76,9 @@ class HapticCommand:
             "pulseOnMs": self.pulse_on_ms,
             "pulseOffMs": self.pulse_off_ms,
         }
+        if self.target_angle_degrees is not None:
+            result["targetAngleDegrees"] = round(self.target_angle_degrees, 1)
+        return result
 
 
 @dataclass(frozen=True, slots=True)
