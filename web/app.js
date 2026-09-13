@@ -60,6 +60,10 @@ const elements = {
   emergencyTrigger: document.querySelector("#emergency-trigger"),
   panelToggle: document.querySelector("#panel-toggle"),
   recenterButton: document.querySelector("#recenter-location"),
+  etaBar: document.querySelector("#eta-bar"),
+  etaTime: document.querySelector("#eta-time"),
+  etaDistance: document.querySelector("#eta-distance"),
+  etaArrival: document.querySelector("#eta-arrival"),
 };
 
 function switchTab(tabName) {
@@ -193,7 +197,7 @@ function bindEvents() {
       const panel = elements.panelToggle?.closest(".panel");
       if (panel) panel.style.height = "";
     }
-    syncRecenterButtonPosition();
+    syncMapOverlayPositions();
   });
 }
 
@@ -203,17 +207,25 @@ const SHEET_PEEK_HEIGHT = 132;
 const sheetExpandedHeight = () => Math.round(window.innerHeight * 0.66);
 const isMobilePanelLayout = () => window.matchMedia("(max-width: 880px)").matches;
 
-// 지도 우하단 "현재 위치" 버튼은 하단 시트 위 가장자리에 항상 붙어 다닌다 — 시트가
-// 얼마나 펼쳐져 있든(접힘/드래그 중/펼침) 그 바로 위에 위치.
-function syncRecenterButtonPosition() {
+// 지도 위 오버레이(현재 위치 버튼 · ETA 바)는 하단 시트 위 가장자리에 항상 붙어
+// 다닌다 — 시트가 얼마나 펼쳐져 있든(접힘/드래그 중/펼침) 그 바로 위에 위치.
+// panelHeightPx를 넘기면 그 값을 그대로 쓴다 — 시트에 CSS 트랜지션이 걸려 있을 때
+// getBoundingClientRect()로 다시 재는 값은 트랜지션 시작 시점(이전 높이)을 반환하기
+// 때문에, 우리가 이미 알고 있는 목표 높이를 직접 넘겨줘야 정확하다.
+function syncMapOverlayPositions(panelHeightPx) {
   const panel = document.querySelector(".panel");
-  if (!elements.recenterButton || !panel) return;
+  if (!panel) return;
+  const overlays = [elements.recenterButton, elements.etaBar].filter(Boolean);
   if (!isMobilePanelLayout()) {
-    elements.recenterButton.style.bottom = "";
+    overlays.forEach((el) => {
+      el.style.bottom = "";
+    });
     return;
   }
-  const panelHeight = panel.getBoundingClientRect().height;
-  elements.recenterButton.style.bottom = `${panelHeight + 16}px`;
+  const panelHeight = panelHeightPx ?? panel.getBoundingClientRect().height;
+  overlays.forEach((el) => {
+    el.style.bottom = `${panelHeight + 16}px`;
+  });
 }
 
 function bindPanelToggle() {
@@ -229,14 +241,15 @@ function bindPanelToggle() {
   const setPanelHeight = (px) => {
     const clamped = Math.min(sheetExpandedHeight(), Math.max(SHEET_PEEK_HEIGHT, px));
     panel.style.height = `${clamped}px`;
-    syncRecenterButtonPosition();
+    syncMapOverlayPositions(clamped);
   };
 
   const setCollapsed = (collapsed) => {
+    const targetHeight = collapsed ? SHEET_PEEK_HEIGHT : sheetExpandedHeight();
     panel.classList.toggle("is-collapsed", collapsed);
     toggle.setAttribute("aria-expanded", String(!collapsed));
-    panel.style.height = `${collapsed ? SHEET_PEEK_HEIGHT : sheetExpandedHeight()}px`;
-    syncRecenterButtonPosition();
+    panel.style.height = `${targetHeight}px`;
+    syncMapOverlayPositions(targetHeight);
   };
 
   toggle.addEventListener("pointerdown", (event) => {
@@ -280,7 +293,7 @@ function bindPanelToggle() {
   toggle.addEventListener("pointerup", endDrag);
   toggle.addEventListener("pointercancel", endDrag);
 
-  syncRecenterButtonPosition();
+  syncMapOverlayPositions();
 }
 
 // 회색 안내 문구를 ? 아이콘 뒤로 접어두고, 호버(데스크톱) 또는 클릭(터치)으로 펼친다.
@@ -705,6 +718,30 @@ function formatDuration(seconds) {
   return `${Math.floor(minutes / 60)}시간 ${minutes % 60}분`;
 }
 
+function formatRemainingDistance(meters) {
+  if (meters >= 1000) return `${(meters / 1000).toFixed(1)}km`;
+  return `${Math.round(meters)}m`;
+}
+
+// GPS 안내 중 지도 하단 중앙에 뜨는 ETA 바 — 지도앱들이 흔히 쓰는 위치·구성
+// (남은 시간 · 남은 거리 · 도착 예정 시각)을 그대로 따른다.
+function updateEtaBar(result) {
+  if (!elements.etaBar) return;
+  if (!result || result.completed) {
+    elements.etaBar.hidden = true;
+    return;
+  }
+  const remainingSeconds = Math.max(0, result.remainingTimeSeconds ?? 0);
+  const arrival = new Date(Date.now() + remainingSeconds * 1000);
+  elements.etaTime.textContent = formatDuration(remainingSeconds);
+  elements.etaDistance.textContent = formatRemainingDistance(result.remainingDistanceMeters ?? 0);
+  elements.etaArrival.textContent = `${arrival.toLocaleTimeString("ko-KR", {
+    hour: "numeric",
+    minute: "2-digit",
+  })} 도착`;
+  elements.etaBar.hidden = false;
+}
+
 const MANEUVER_LABELS = {
   START: "출발",
   STRAIGHT: "직진",
@@ -860,6 +897,7 @@ function stopNavigation() {
   elements.startNavigation.disabled = !state.route;
   elements.stopNavigation.disabled = true;
   setStatus("GPS 안내 중지");
+  if (elements.etaBar) elements.etaBar.hidden = true;
 }
 
 function renderGpsDebug(position, result) {
@@ -895,6 +933,7 @@ async function updateLocation(position) {
       body: JSON.stringify(location),
     });
     renderGpsDebug(position, result);
+    updateEtaBar(result);
     if (result.completed) {
       elements.nextGuidance.textContent = "목적지에 도착했습니다.";
       stopNavigation();

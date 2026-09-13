@@ -274,12 +274,26 @@ class NavigationSession:
             if next_event is not None
             else None
         )
+        # 남은 거리/시간 — 지도 앱 하단 ETA 바용. 진행률(_route_progress_meters)을
+        # 전체 경로 길이·소요시간에 비례시킨 근사치라 걸음 속도가 크게 변하면 오차가 있다.
+        remaining_distance_meters = max(
+            0.0, self.route.total_distance_meters - self._route_progress_meters
+        )
+        remaining_time_seconds = (
+            remaining_distance_meters
+            / self.route.total_distance_meters
+            * self.route.total_time_seconds
+            if self.route.total_distance_meters > 0
+            else 0.0
+        )
         return {
             "routeId": self.route.route_id,
             "location": location.to_public_dict(),
             "distanceFromRouteMeters": round(route_distance, 1),
             "offRoute": self._off_route_count >= 3,
             "completed": next_event is None,
+            "remainingDistanceMeters": round(remaining_distance_meters, 1),
+            "remainingTimeSeconds": round(remaining_time_seconds),
             "nextInstruction": (
                 {
                     "stepIndex": next_event.step_index,

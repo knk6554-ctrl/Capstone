@@ -12,7 +12,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2/dist/tabler-icons.min.css" />
-    <link rel="stylesheet" href="/static/styles.css?v=recenter-track" />
+    <link rel="stylesheet" href="/static/styles.css?v=eta-bar2" />
   </head>
   <body>
     <a class="skip-link" href="#main-content">본문으로 바로가기</a>
@@ -28,6 +28,15 @@
     >
       <i class="ti ti-current-location" aria-hidden="true"></i>
     </button>
+
+    <!-- GPS 안내 중 지도 하단 중앙에 뜨는 ETA 바 (남은 시간 · 남은 거리 · 도착 예정) -->
+    <div id="eta-bar" class="eta-bar" role="status" aria-live="polite" hidden>
+      <strong id="eta-time">-</strong>
+      <span class="eta-dot" aria-hidden="true">·</span>
+      <span id="eta-distance">-</span>
+      <span class="eta-dot" aria-hidden="true">·</span>
+      <span id="eta-arrival">-</span>
+    </div>
 
     <!-- Dynamic Island Alert Banner -->
     <div
@@ -280,6 +289,6 @@
       </div>
     </main>
 
-    <script src="/static/app.js?v=recenter-track" defer></script>
+    <script src="/static/app.js?v=eta-bar2" defer></script>
   </body>
 </html>

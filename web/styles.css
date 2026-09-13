@@ -185,9 +185,45 @@ p {
   transform: scale(0.94);
 }
 
+/* GPS 안내 중 지도 하단 중앙에 뜨는 ETA 바 — 지도앱들이 흔히 쓰는 위치·구성 */
+.eta-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 152px; /* JS가 하단 시트 높이에 맞춰 실시간으로 갱신 — 이 값은 초기 로딩 전 기본값 */
+  transform: translateX(-50%);
+  z-index: 15;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.7rem 1.2rem;
+  border-radius: 999px;
+  background: var(--ink);
+  color: #ffffff;
+  font-size: 0.88rem;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: var(--shadow-float);
+  transition: bottom 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.eta-bar strong {
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+}
+
+.eta-dot {
+  opacity: 0.5;
+}
+
 @media (min-width: 881px) {
   .recenter-button {
     right: 1.5rem;
+    bottom: 1.5rem;
+  }
+
+  .eta-bar {
+    left: calc((100% + var(--panel-width)) / 2);
     bottom: 1.5rem;
   }
 }
