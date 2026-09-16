@@ -12,7 +12,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2/dist/tabler-icons.min.css" />
-    <link rel="stylesheet" href="/static/styles.css?v=demo-mode" />
+    <link rel="stylesheet" href="/static/styles.css?v=no-em-sim" />
   </head>
   <body>
     <a class="skip-link" href="#main-content">본문으로 바로가기</a>
@@ -277,32 +277,6 @@
             <i class="ti ti-send" aria-hidden="true"></i> 센서값 전송
           </button>
           <div id="sensor-status" class="sensor-status" aria-live="polite"></div>
-
-          <div class="emergency-simulator">
-            <h3>
-              비상 호출 스위치 (하드웨어 시뮬레이터)<span class="help-hint">
-                <button
-                  type="button"
-                  class="help-hint__trigger"
-                  aria-expanded="false"
-                  aria-describedby="emergency-sim-note"
-                  aria-label="비상 호출 스위치 도움말"
-                >
-                  ?
-                </button>
-                <span
-                  class="help-hint__bubble"
-                  id="emergency-sim-note"
-                  role="tooltip"
-                  >시각장애인 착용 벨트의 비상 버튼을 시뮬레이션합니다. 작동 시
-                  보호자 화면에 즉각 위험 배너가 표시됩니다.</span
-                >
-              </span>
-            </h3>
-            <button id="emergency-trigger" type="button" class="danger-button">
-              <i class="ti ti-alert-triangle" aria-hidden="true"></i> 긴급 비상 신호 전송
-            </button>
-          </div>
         </section>
 
         <!-- Haptic Command Log Panel -->
@@ -325,6 +299,6 @@
       </div>
     </main>
 
-    <script src="/static/app.js?v=demo-mode" defer></script>
+    <script src="/static/app.js?v=no-em-sim" defer></script>
   </body>
 </html>

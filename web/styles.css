@@ -1197,27 +1197,6 @@ button:disabled {
   font-weight: 700;
 }
 
-.emergency-simulator {
-  margin-top: 1.5rem;
-  padding-top: 1.2rem;
-  border-top: 1px solid var(--line-soft);
-}
-
-.emergency-simulator h3 {
-  margin: 0 0 0.3rem;
-}
-
-.danger-button {
-  width: 100%;
-  margin-top: 0.8rem;
-  background: var(--hazard-crosswalk);
-  color: #ffffff;
-}
-
-.danger-button:hover:not(:disabled) {
-  background: #a3281f;
-}
-
 /* ==========================================================================
    Footer
    ========================================================================== */

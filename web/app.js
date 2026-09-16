@@ -64,7 +64,6 @@ const elements = {
   emergencyMessage: document.querySelector("#emergency-message"),
   emergencyTime: document.querySelector("#emergency-time"),
   emergencyAck: document.querySelector("#emergency-ack"),
-  emergencyTrigger: document.querySelector("#emergency-trigger"),
   panelToggle: document.querySelector("#panel-toggle"),
   recenterButton: document.querySelector("#recenter-location"),
   etaBar: document.querySelector("#eta-bar"),
@@ -199,7 +198,6 @@ function bindEvents() {
   elements.stopNavigation.addEventListener("click", stopNavigation);
   document.querySelector("#send-tof").addEventListener("click", sendTofReadings);
 
-  elements.emergencyTrigger.addEventListener("click", triggerEmergency);
   elements.emergencyAck.addEventListener("click", acknowledgeEmergency);
   bindHelpHints();
   bindPanelToggle();
@@ -1204,41 +1202,13 @@ function renderSensorStatus(sensors) {
 // ---------------------------------------------------------------------------
 // 위험 버튼 알림
 //
-// The danger-button press (simulated here) sets one active alert on the
-// server. This page polls it every few seconds and shows a banner while
-// unacknowledged. The caregiver must have this page open -- there is no
-// background push yet.
+// 실제 벨트의 비상 버튼이 서버에 알림을 등록하면, 이 페이지가 몇 초마다 폴링해서
+// 확인 전까지 배너로 보여준다. 보호자가 이 화면을 열어둔 상태에서만 보이고,
+// 아직 백그라운드 푸시는 없다. (웹에서 직접 알림을 쏴보는 시뮬레이터 버튼은
+// 팀 요청으로 프론트엔드에서 제거했다 — 필요해지면 /api/emergency POST로 복원 가능.)
 // ---------------------------------------------------------------------------
 
 let lastSeenAlertId = null;
-
-async function triggerEmergency() {
-  elements.emergencyTrigger.disabled = true;
-  const payload = { message: "도움이 필요합니다." };
-  try {
-    if (navigator.geolocation) {
-      const position = await new Promise((resolve) => {
-        navigator.geolocation.getCurrentPosition(
-          resolve,
-          () => resolve(null),
-          { enableHighAccuracy: true, timeout: 4000 },
-        );
-      });
-      if (position) {
-        payload.coordinate = {
-          longitude: position.coords.longitude,
-          latitude: position.coords.latitude,
-        };
-      }
-    }
-    await api("/api/emergency", { method: "POST", body: JSON.stringify(payload) });
-    await pollEmergency();
-  } catch (error) {
-    setStatus(error.message, true);
-  } finally {
-    elements.emergencyTrigger.disabled = false;
-  }
-}
 
 async function pollEmergency() {
   try {
