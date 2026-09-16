@@ -954,6 +954,7 @@ function startNavigation() {
   state.lastKnownStepIndex = null;
   elements.routeViewToggle.hidden = false;
   setRouteViewMode("live");
+  pushRouteViewToggleBelowBanner();
   state.watchId = navigator.geolocation.watchPosition(
     updateLocation,
     (error) => {
@@ -1190,11 +1191,25 @@ function showEmergencyBanner(alert) {
   const time = new Date(alert.triggeredAt);
   elements.emergencyTime.textContent = time.toLocaleTimeString("ko-KR", { hour12: false });
   elements.emergencyAck.dataset.alertId = alert.alertId;
+  pushRouteViewToggleBelowBanner();
 }
 
 function hideEmergencyBanner() {
   elements.emergencyBanner.hidden = true;
   lastSeenAlertId = null;
+  pushRouteViewToggleBelowBanner();
+}
+
+// 위험 배너와 "전체 경로/현재 이동 경로" 토글이 둘 다 지도 위쪽에 떠서, GPS 안내 중
+// 위험 알림이 뜨면 토글을 완전히 가려버린다 — 배너가 보일 땐 그 아래로 밀어준다.
+function pushRouteViewToggleBelowBanner() {
+  if (!elements.routeViewToggle) return;
+  if (elements.emergencyBanner.hidden) {
+    elements.routeViewToggle.style.top = "";
+    return;
+  }
+  const bannerBottom = elements.emergencyBanner.getBoundingClientRect().bottom;
+  elements.routeViewToggle.style.top = `${bannerBottom + 12}px`;
 }
 
 async function acknowledgeEmergency() {

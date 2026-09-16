@@ -233,6 +233,7 @@ p {
   background: var(--paper);
   border: 1px solid var(--line);
   box-shadow: var(--shadow-float);
+  transition: top 0.2s ease;
 }
 
 .route-view-toggle__btn {
