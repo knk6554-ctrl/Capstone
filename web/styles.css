@@ -913,6 +913,40 @@ button:disabled {
   gap: 0.6rem;
 }
 
+/* 시연용 스위치 — 점선 테두리로 gps-debug와 같은 "진단/테스트 도구" 톤을 공유하되
+   호박색 강조를 줘서 평소 켜둘 요소가 아님을 분명히 한다. */
+.demo-mode-toggle {
+  margin-top: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.85rem;
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--hazard-stairs);
+  background: var(--hazard-stairs-tint);
+  color: var(--amber-deep);
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  width: fit-content;
+}
+
+.demo-mode-toggle input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--hazard-stairs);
+  cursor: pointer;
+}
+
+/* 시연 모드에서는 목록을 누르면 실제로 서버에 위치가 전달된다는 걸 시각적으로도 암시 */
+.directions.is-demo-mode li {
+  cursor: pointer;
+}
+
+.directions.is-demo-mode li:hover {
+  background: var(--hazard-stairs-tint);
+}
+
 /* ==========================================================================
    안내 문구 · 단계 목록
    ========================================================================== */

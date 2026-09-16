@@ -19,6 +19,8 @@ const state = {
   routeViewMode: "full",
   lastAutoStepIndex: -1,
   lastKnownStepIndex: null,
+  // 시연 모드: 실제 GPS 대신 안내 목록 클릭으로 각 지점 도달을 흉내낸다.
+  demoMode: false,
 };
 
 // 위험 구간(계단·횡단보도)을 지도에 상시 표시할 색 — 성격이 다른 위험이라 색을 구분한다.
@@ -70,6 +72,7 @@ const elements = {
   etaDistance: document.querySelector("#eta-distance"),
   etaArrival: document.querySelector("#eta-arrival"),
   routeViewToggle: document.querySelector("#route-view-toggle"),
+  demoModeCheckbox: document.querySelector("#demo-mode-checkbox"),
 };
 
 function switchTab(tabName) {
@@ -202,6 +205,9 @@ function bindEvents() {
   bindPanelToggle();
   bindRouteViewToggle();
   elements.recenterButton.addEventListener("click", () => locateAndCenterMap());
+  elements.demoModeCheckbox.addEventListener("change", (event) => {
+    setDemoMode(event.target.checked);
+  });
   pollEmergency();
   setInterval(pollEmergency, 4000);
 
@@ -626,9 +632,16 @@ async function createRoute() {
     renderRoute(route);
     renderHazards(route);
     renderComparison(route);
-    elements.startNavigation.disabled = false;
     elements.routeMessage.textContent = `${modeLabel}를 만들었습니다.`;
-    setStatus("경로 준비 완료");
+    if (state.demoMode) {
+      // 시연 모드가 이미 켜져 있었다면(경로 없을 때 미리 켜둔 경우) 새 경로에 맞춰 안내 UI를 켠다.
+      elements.startNavigation.disabled = true;
+      enterNavigationUiState();
+      setStatus("시연 모드 · 목록을 눌러 도달을 시뮬레이션합니다");
+    } else {
+      elements.startNavigation.disabled = false;
+      setStatus("경로 준비 완료");
+    }
   } catch (error) {
     elements.routeMessage.textContent = error.message;
     setStatus("경로 생성 실패", true);
@@ -790,11 +803,20 @@ function renderRoute(route) {
     item.tabIndex = 0;
     item.setAttribute("role", "button");
     item.setAttribute("aria-label", `${index + 1}번째 안내 단계를 지도에서 보기`);
-    item.addEventListener("click", () => focusRouteStep(route, index, item));
+    const activateStep = () => {
+      // 시연 모드: 실제로 걷지 않아도 이 지점에 방금 도달한 것처럼 서버에 위치를
+      // 전달한다 — 실제 GPS 수신과 똑같은 경로를 타므로 진동도 실제로 울린다.
+      if (state.demoMode) {
+        simulateStepArrival(index);
+      } else {
+        focusRouteStep(route, index, item);
+      }
+    };
+    item.addEventListener("click", activateStep);
     item.addEventListener("keydown", (event) => {
       if (event.key !== "Enter" && event.key !== " ") return;
       event.preventDefault();
-      focusRouteStep(route, index, item);
+      activateStep();
     });
 
     elements.directions.appendChild(item);
@@ -939,13 +961,8 @@ function bindRouteViewToggle() {
   });
 }
 
-function startNavigation() {
-  if (!state.route) return;
-  if (!window.isSecureContext || !navigator.geolocation) {
-    setGuidance(locationErrorMessage());
-    setStatus("현위치 사용 불가", true);
-    return;
-  }
+// 실제 GPS든 시연 모드든 "안내 중" 화면 상태는 동일 — 여기서 한 번만 켠다.
+function enterNavigationUiState() {
   state.gpsFixCount = 0;
   elements.gpsCount.textContent = "0";
   elements.gpsDebug.hidden = false;
@@ -955,6 +972,16 @@ function startNavigation() {
   elements.routeViewToggle.hidden = false;
   setRouteViewMode("live");
   pushRouteViewToggleBelowBanner();
+}
+
+function startNavigation() {
+  if (!state.route) return;
+  if (!window.isSecureContext || !navigator.geolocation) {
+    setGuidance(locationErrorMessage());
+    setStatus("현위치 사용 불가", true);
+    return;
+  }
+  enterNavigationUiState();
   state.watchId = navigator.geolocation.watchPosition(
     updateLocation,
     (error) => {
@@ -982,6 +1009,48 @@ function stopNavigation() {
   if (elements.etaBar) elements.etaBar.hidden = true;
   elements.routeViewToggle.hidden = true;
   setRouteViewMode("full");
+}
+
+// 시연 모드: 실제로 걷지 않고도 안내 목록을 눌러 각 지점 도달을 흉내낸다.
+// 실제 GPS와 동시에 돌면 위치가 뒤섞이니 서로 배타적으로 둔다.
+function setDemoMode(enabled) {
+  state.demoMode = enabled;
+  elements.directions.classList.toggle("is-demo-mode", enabled);
+
+  if (enabled) {
+    if (state.watchId !== null) stopNavigation();
+    elements.startNavigation.disabled = true;
+    if (state.route) {
+      enterNavigationUiState();
+      setStatus("시연 모드 · 목록을 눌러 도달을 시뮬레이션합니다");
+    }
+    return;
+  }
+
+  elements.startNavigation.disabled = !state.route;
+  elements.etaBar.hidden = true;
+  elements.routeViewToggle.hidden = true;
+  elements.gpsDebug.hidden = true;
+  setRouteViewMode("full");
+  setStatus(state.route ? "경로 준비 완료" : "시스템 준비 완료");
+}
+
+// 안내 목록 번호를 누르면 그 지점에 실제로 도달한 것처럼 서버에 위치를 전달한다.
+// updateLocation()과 완전히 같은 경로를 타므로 서버가 실제 진동 명령을 만들어
+// /api/haptics 대기열에 넣는다 — 벨트·팔찌가 폴링 중이면 실제로 진동한다.
+async function simulateStepArrival(index) {
+  if (!state.route || !state.demoMode) return;
+  const step = state.route.steps[index];
+  if (!step?.location) return;
+  if (elements.gpsDebug.hidden) enterNavigationUiState();
+  await updateLocation({
+    coords: {
+      longitude: step.location.longitude,
+      latitude: step.location.latitude,
+      accuracy: 3,
+    },
+    timestamp: Date.now(),
+  });
 }
 
 function renderGpsDebug(position, result) {
