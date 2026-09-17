@@ -218,6 +218,38 @@ p {
   opacity: 0.5;
 }
 
+/* 같은 경로를 처음부터 다시 재생하는 버튼 — 도착 정보 바로 옆, 같은 알약 안에 */
+.eta-bar__reset {
+  align-self: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  min-height: unset;
+  margin: -0.3rem -0.7rem -0.3rem 0.1rem;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.eta-bar__reset:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.eta-bar__reset:active {
+  transform: scale(0.9);
+}
+
+.eta-bar__reset:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* GPS 안내 중에만 뜨는 지도 보기 모드 전환 — 지도 상단 중앙에 떠 있다.
    하단 시트와 무관한 위치라 recenter-button/eta-bar 같은 높이 추적이 필요 없다. */
 .route-view-toggle {
@@ -915,15 +947,8 @@ button:disabled {
 
 /* 시연용 스위치 — 점선 테두리로 gps-debug와 같은 "진단/테스트 도구" 톤을 공유하되
    호박색 강조를 줘서 평소 켜둘 요소가 아님을 분명히 한다. */
-.demo-mode-row {
-  margin-top: 0.9rem;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-}
-
 .demo-mode-toggle {
+  margin-top: 0.9rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -936,12 +961,6 @@ button:disabled {
   font-weight: 600;
   cursor: pointer;
   width: fit-content;
-}
-
-.demo-reset-button {
-  min-height: 40px;
-  padding: 0.5rem 0.9rem;
-  font-size: 0.84rem;
 }
 
 .demo-mode-toggle input {

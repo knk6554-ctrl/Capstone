@@ -633,7 +633,6 @@ async function createRoute() {
     renderHazards(route);
     renderComparison(route);
     elements.routeMessage.textContent = `${modeLabel}를 만들었습니다.`;
-    elements.resetProgressButton.disabled = false;
     if (state.demoMode) {
       // 시연 모드가 이미 켜져 있었다면(경로 없을 때 미리 켜둔 경우) 새 경로에 맞춰 안내 UI를 켠다.
       elements.startNavigation.disabled = true;
