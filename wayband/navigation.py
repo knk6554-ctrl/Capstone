@@ -194,11 +194,7 @@ class NavigationSession:
         self.prepare_distance_meters = prepare_distance_meters
         self.turn_now_distance_meters = turn_now_distance_meters
         self.off_route_distance_meters = off_route_distance_meters
-        self._event_cursor = 0
-        self._prepared_event_indices: set[int] = set()
-        self._off_route_count = 0
-        self._off_route_alerted = False
-        self._route_progress_meters = 0.0
+        self.reset_progress()
         self._event_progress_meters = tuple(
             project_onto_polyline_meters(event.location, route.path)[1]
             for event in self.events
@@ -213,6 +209,19 @@ class NavigationSession:
             cumulative += sum(
                 haversine_meters(a, b) for a, b in zip(step.path, step.path[1:])
             )
+
+    def reset_progress(self) -> None:
+        """진행 상황만 처음으로 되돌린다 — 경로 자체(카카오 재조회)는 그대로 둔다.
+
+        시연 중 같은 경로를 다시 처음부터 재생하고 싶을 때 쓴다. progress_meters와
+        event_cursor는 한 번 전진하면 되돌아가지 않는 값이라, 뒤로 이동/클릭만으로는
+        절대 초기화되지 않는다 — 이 메서드를 명시적으로 호출해야 한다.
+        """
+        self._event_cursor = 0
+        self._prepared_event_indices: set[int] = set()
+        self._off_route_count = 0
+        self._off_route_alerted = False
+        self._route_progress_meters = 0.0
 
     def update(self, location: Coordinate, accuracy_meters: float | None) -> dict[str, Any]:
         commands: list[HapticCommand] = []

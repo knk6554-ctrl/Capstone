@@ -227,6 +227,16 @@ def update_location(
         raise HTTPException(status_code=404, detail="경로를 찾을 수 없습니다.") from exc
 
 
+@app.post("/api/navigation/{route_id}/reset")
+def reset_navigation(request: Request, route_id: str) -> dict[str, object]:
+    """같은 경로의 진행 상황(진동 이력 포함)만 처음으로 되돌린다 — 시연·반복 시험용."""
+    try:
+        _service(request).reset_navigation(route_id)
+    except RouteNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="경로를 찾을 수 없습니다.") from exc
+    return {"status": "reset"}
+
+
 @app.post("/api/tof")
 def update_tof(request: Request, body: TofBody) -> dict[str, object]:
     detector: HazardDetector = request.app.state.hazard

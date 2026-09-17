@@ -147,3 +147,15 @@ class WaybandService:
         command_objects = cast(list[HapticCommand], result.pop("_commandObjects"))
         self.commands.publish(command_objects)
         return result
+
+    def reset_navigation(self, route_id: str) -> None:
+        """같은 경로를 그대로 두고 진행 상황(진동 이력 포함)만 처음으로 되돌린다.
+
+        시연·반복 시험용 — 카카오 경로를 다시 조회하지 않아 빠르고, routeId도 그대로다.
+        """
+        with self._lock:
+            try:
+                session = self._sessions[route_id]
+            except KeyError as exc:
+                raise RouteNotFoundError(route_id) from exc
+            session.reset_progress()

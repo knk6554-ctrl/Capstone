@@ -72,6 +72,7 @@ const elements = {
   etaArrival: document.querySelector("#eta-arrival"),
   routeViewToggle: document.querySelector("#route-view-toggle"),
   demoModeCheckbox: document.querySelector("#demo-mode-checkbox"),
+  resetProgressButton: document.querySelector("#reset-progress"),
 };
 
 function switchTab(tabName) {
@@ -206,6 +207,7 @@ function bindEvents() {
   elements.demoModeCheckbox.addEventListener("change", (event) => {
     setDemoMode(event.target.checked);
   });
+  elements.resetProgressButton.addEventListener("click", resetNavigationProgress);
   pollEmergency();
   setInterval(pollEmergency, 4000);
 
@@ -631,6 +633,7 @@ async function createRoute() {
     renderHazards(route);
     renderComparison(route);
     elements.routeMessage.textContent = `${modeLabel}를 만들었습니다.`;
+    elements.resetProgressButton.disabled = false;
     if (state.demoMode) {
       // 시연 모드가 이미 켜져 있었다면(경로 없을 때 미리 켜둔 경우) 새 경로에 맞춰 안내 UI를 켠다.
       elements.startNavigation.disabled = true;
@@ -1049,6 +1052,28 @@ async function simulateStepArrival(index) {
     },
     timestamp: Date.now(),
   });
+}
+
+// 같은 경로를 그대로 두고 진행 상황(진동 이력 포함)만 처음으로 되돌린다. 카카오 경로를
+// 다시 조회하지 않아 "경로 생성"보다 훨씬 빠르다 — 시연을 처음부터 다시 돌릴 때 쓴다.
+async function resetNavigationProgress() {
+  if (!state.route) return;
+  elements.resetProgressButton.disabled = true;
+  try {
+    await api(`/api/navigation/${state.route.routeId}/reset`, { method: "POST" });
+    clearStepFocus();
+    state.lastAutoStepIndex = -1;
+    state.lastKnownStepIndex = null;
+    state.gpsFixCount = 0;
+    elements.gpsCount.textContent = "0";
+    elements.etaBar.hidden = true;
+    setGuidance("GPS 안내를 시작하면 다음 회전까지 거리를 표시합니다.", false);
+    setStatus(state.demoMode ? "시연 모드 · 처음부터 다시 시작합니다" : "안내 진행 초기화됨");
+  } catch (error) {
+    setStatus(error.message, true);
+  } finally {
+    elements.resetProgressButton.disabled = false;
+  }
 }
 
 function renderGpsDebug(position, result) {

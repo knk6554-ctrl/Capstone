@@ -915,8 +915,15 @@ button:disabled {
 
 /* 시연용 스위치 — 점선 테두리로 gps-debug와 같은 "진단/테스트 도구" 톤을 공유하되
    호박색 강조를 줘서 평소 켜둘 요소가 아님을 분명히 한다. */
-.demo-mode-toggle {
+.demo-mode-row {
   margin-top: 0.9rem;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.demo-mode-toggle {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -929,6 +936,12 @@ button:disabled {
   font-weight: 600;
   cursor: pointer;
   width: fit-content;
+}
+
+.demo-reset-button {
+  min-height: 40px;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.84rem;
 }
 
 .demo-mode-toggle input {
