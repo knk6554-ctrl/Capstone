@@ -23,7 +23,7 @@ async def rotate(runtime: DemoRuntime, target: float, label: str) -> bool:
     runtime.reset_angle()
     side = Side.LEFT if target < 0 else Side.RIGHT
     await runtime.haptic(
-        f"ROTATE_{side.value}_{time.monotonic()}",
+        f"ROTATE_{side.value}",
         PulsePattern(side, (round(runtime.cfg.rotation_timeout_seconds * 1000),), intensity=220),
         0.0,
     )
@@ -63,8 +63,29 @@ async def demo(runtime: DemoRuntime) -> None:
             continue
 
         await runtime.haptic("OBSTACLE", PulsePattern(Side.BOTH, (220, 220), (180,), 230), 2.0)
+        payload = await runtime.sample(
+            "전방 하단·우측 장애물 확인 · 좌측 확인 중",
+            obstacle="장애물 감지",
+            avoidance="좌측 확인 중",
+        )
+
+        # 우측이 막혀 있다고 왼쪽으로 무조건 돌지 않는다 — 왼쪽도 막혀 있으면 정지한다.
+        left_blocked = (
+            payload["left_mm"] is not None and payload["left_mm"] <= runtime.args.left_blocked_mm
+        )
+        if left_blocked:
+            await runtime.haptic("NO_PATH", PulsePattern(Side.BOTH, (150, 150), (100,), 255), 1.5)
+            await runtime.wait_with_sensors(
+                2.0,
+                "좌우 모두 막힘 · 정지",
+                obstacle="장애물 감지",
+                avoidance="통로 없음 · 정지",
+                avoidance_angle=None,
+            )
+            continue
+
         await runtime.sample(
-            "전방 하단·우측 장애물 확인",
+            "좌측 열림 확인",
             obstacle="장애물 감지",
             avoidance="좌측 30° 회피 결정",
             avoidance_angle=-30.0,
@@ -103,6 +124,7 @@ def main() -> None:
     add_common_arguments(parser)
     parser.add_argument("--virtual-front-mm", type=int, default=1000)
     parser.add_argument("--right-blocked-mm", type=int, default=650)
+    parser.add_argument("--left-blocked-mm", type=int, default=650)
     parser.add_argument("--forward-seconds", type=float, default=2.0)
     args = parser.parse_args()
     runtime = DemoRuntime(args, "3. 장애물 회피")

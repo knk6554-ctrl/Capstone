@@ -59,7 +59,6 @@ def _grid(values: list[int | None]) -> list[list[int | None]]:
 def _web_payload(payload: dict[str, Any]) -> dict[str, Any]:
     angle = float(payload["angle_deg"])
     direction = "LEFT" if angle < -0.5 else "RIGHT" if angle > 0.5 else "NONE"
-    levels = payload["levels"]
     return {
         "stats": {
             "leftSideMm": payload["left_mm"],
@@ -68,13 +67,14 @@ def _web_payload(payload: dict[str, Any]) -> dict[str, Any]:
             "gyroZOffsetDegPerSec": payload["imu_bias_dps"],
             "gyroZFinalDegPerSec": payload["rate_dps"],
         },
-        "statusSummary": [
-            {"level": "good", "label": "정상", "count": levels.count("normal")},
-            {"level": "warning", "label": "경고", "count": levels.count("warning")},
-            {"level": "critical", "label": "위험", "count": levels.count("danger")},
-        ],
         "imu": {"direction": direction, "angleDeg": angle},
         "tof": {"front": _grid(payload["front"]), "down": _grid(payload["down"])},
+        "decisions": [
+            {"label": "장애물", "value": payload["obstacle"]},
+            {"label": "계단/낙차", "value": payload["stairs"]},
+            {"label": "회피 결정", "value": payload["avoidance"]},
+            {"label": "팔찌 진동", "value": payload["haptic_status"]},
+        ],
     }
 
 
