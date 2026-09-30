@@ -12,7 +12,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2/dist/tabler-icons.min.css" />
-    <link rel="stylesheet" href="/static/styles.css?v=status-chip-grid1" />
+    <link rel="stylesheet" href="/static/styles.css?v=recenter-reset1" />
   </head>
   <body>
     <a class="skip-link" href="#main-content">본문으로 바로가기</a>
@@ -26,7 +26,7 @@
       class="recenter-button"
       aria-label="현재 위치로 이동"
     >
-      <i class="ti ti-current-location" aria-hidden="true"></i>
+      <img src="/static/assets/recenter-icon.png" alt="" class="recenter-button__icon" aria-hidden="true" />
     </button>
 
     <!-- GPS 안내 중 지도 하단 중앙에 뜨는 ETA 바 (남은 시간 · 남은 거리 · 도착 예정) -->
@@ -43,7 +43,7 @@
         title="같은 경로에서 진행 상황과 진동 이력만 처음으로 되돌립니다"
         aria-label="처음부터 다시"
       >
-        <i class="ti ti-refresh" aria-hidden="true"></i>
+        Reset
       </button>
     </div>
 
@@ -358,6 +358,6 @@
       </div>
     </main>
 
-    <script src="/static/app.js?v=status-chip-grid1" defer></script>
+    <script src="/static/app.js?v=recenter-reset1" defer></script>
   </body>
 </html>
