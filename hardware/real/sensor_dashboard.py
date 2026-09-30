@@ -21,6 +21,8 @@ from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
+from urllib.error import URLError
+from urllib.request import Request, urlopen
 
 HARDWARE_ROOT = Path(__file__).resolve().parents[1]
 if str(HARDWARE_ROOT) not in sys.path:
@@ -195,6 +197,48 @@ def make_payload(
     }
 
 
+def _web_dashboard_payload(payload: dict[str, Any], bias_dps: float) -> dict[str, Any]:
+    """make_payload()가 만든 이 파일 전용 모양을 web/app.js의 renderSensorDashboard()가
+    그대로 그릴 수 있는 모양으로 재구성한다(hardware/real/main.py의 _web_dashboard_payload와
+    같은 목적 — 여기서는 이미 계산된 make_payload()의 counts/levels를 재사용한다).
+    """
+
+    def grid(flat: list) -> list[list]:
+        return [flat[row * 8 : row * 8 + 8] for row in range(8)]
+
+    counts = payload["counts"]
+    angle = payload["angle_deg"]
+    direction = "LEFT" if angle < -0.5 else "RIGHT" if angle > 0.5 else "NONE"
+    return {
+        "stats": {
+            "leftSideMm": payload["left_mm"],
+            "rightSideMm": payload["right_mm"],
+            "rotationDeg": angle,
+            "gyroZOffsetDegPerSec": round(bias_dps, 2),
+            "gyroZFinalDegPerSec": payload["rate_dps"],
+        },
+        "statusSummary": [
+            {"level": "good", "label": "정상", "count": counts.get("normal", 0)},
+            {"level": "warning", "label": "경고", "count": counts.get("warning", 0)},
+            {"level": "critical", "label": "위험", "count": counts.get("danger", 0)},
+        ],
+        "imu": {"direction": direction, "angleDeg": angle},
+        "tof": {"front": grid(payload["front"]), "down": grid(payload["down"])},
+    }
+
+
+def _push_web_dashboard(server_url: str, payload: dict[str, Any]) -> None:
+    body = json.dumps(payload).encode("utf-8")
+    request = Request(
+        f"{server_url}/api/sensors/dashboard",
+        data=body,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urlopen(request, timeout=2):
+        pass
+
+
 def sensor_loop(args: argparse.Namespace, state: SharedState, stop: threading.Event) -> None:
     cfg = Config(
         baseline_down_mm=args.baseline_down_mm,
@@ -255,6 +299,8 @@ def sensor_loop(args: argparse.Namespace, state: SharedState, stop: threading.Ev
             print("IMU 보정 중입니다. 장치를 움직이지 마세요.")
             imu.initialize()
         sensor_loop.imu = imu
+        last_dashboard_push = 0.0
+        web_dashboard_status = "아직 전송 안 함"
 
         while not stop.is_set():
             if args.simulate:
@@ -265,6 +311,21 @@ def sensor_loop(args: argparse.Namespace, state: SharedState, stop: threading.Ev
                 source = "실제 센서"
             payload = make_payload(cfg, detector, front, down, left, right, angle, rate, source)
             payload["haptic_status"] = send_safety_haptic(payload)
+
+            now = time.monotonic()
+            if not args.no_web_dashboard and now - last_dashboard_push >= 0.5:
+                last_dashboard_push = now
+                web_payload = _web_dashboard_payload(
+                    payload, getattr(imu, "bias_dps", 0.0)
+                )
+                try:
+                    _push_web_dashboard(args.server_url, web_payload)
+                    web_dashboard_status = f"정상 전송 ({time.strftime('%H:%M:%S')})"
+                except (URLError, TimeoutError, OSError) as exc:
+                    web_dashboard_status = f"전송 실패: {exc}"
+                    print(f"웹 대시보드 전송 실패(계속 진행합니다): {exc}")
+            payload["web_dashboard_status"] = web_dashboard_status
+
             state.set(payload)
             stop.wait(args.interval)
     except Exception as exc:
@@ -355,6 +416,7 @@ def render_terminal(payload: dict[str, Any]) -> str:
         f"[회피 결정] {payload['avoidance']}"
         + (f" ({payload['avoidance_angle_deg']:+.1f}°)" if payload["avoidance_angle_deg"] not in (None, 0) else ""),
         f"[팔찌 진동] {payload.get('haptic_status', '연결 준비 중')}",
+        f"[웹 대시보드] {payload.get('web_dashboard_status', '아직 전송 안 함')}",
     ]
     if payload.get("front_enabled", True):
         lines.extend(("", "전방 ToF 8×8 (mm)", grid(payload["front"])))
@@ -390,6 +452,16 @@ def main() -> None:
     parser.add_argument("--enable-front", action="store_true", help="교체한 전방 VL53L5CX(CH1)를 다시 사용")
     parser.add_argument("--terminal", action="store_true", help="웹 없이 현재 터미널에 표시")
     parser.add_argument("--simulate-ble", action="store_true", help="실제 팔찌 없이 진동 전송 시험")
+    parser.add_argument(
+        "--server-url",
+        default="http://127.0.0.1:8000",
+        help="WAYBAND 지도 서버 주소 — 0.5초마다 이 서버의 /api/sensors/dashboard로 센서값을 올린다",
+    )
+    parser.add_argument(
+        "--no-web-dashboard",
+        action="store_true",
+        help="지도 서버로 센서값을 전송하지 않음(기본은 전송함)",
+    )
     args = parser.parse_args()
 
     state = SharedState({"error": "센서 초기화 중입니다."})

@@ -73,6 +73,7 @@ def _dashboard_payload(
     action,
     simulated,
     front_enabled,
+    web_dashboard_status="아직 전송 안 함",
 ):
     kinds = {event.kind for event in safety_events}
     if EventKind.STAIR_UP in kinds:
@@ -112,6 +113,7 @@ def _dashboard_payload(
         "avoidance": avoidance,
         "avoidance_angle_deg": avoidance_angle,
         "haptic_status": action,
+        "web_dashboard_status": web_dashboard_status,
     }
 
 
@@ -227,6 +229,10 @@ async def run(args: argparse.Namespace) -> None:
     dashboard_stop = threading.Event()
     dashboard_thread = None
     current_action = "시스템 준비 중"
+    # --terminal 화면은 0.25초마다 전체를 지우고 다시 그리므로, 평범한 print()로
+    # 남긴 전송 실패 메시지는 거의 바로 화면에서 지워져 사실상 안 보인다 — 그래서
+    # 마지막 전송 결과를 화면 자체(아래 [웹 대시보드] 줄)에 계속 표시해둔다.
+    web_dashboard_status = "아직 전송 안 함"
 
     rig.start()
     if args.simulate_imu:
@@ -326,6 +332,7 @@ async def run(args: argparse.Namespace) -> None:
                     action=current_action,
                     simulated=args.simulate_sensors,
                     front_enabled=cfg.enable_front,
+                    web_dashboard_status=web_dashboard_status,
                 ))
 
             if not getattr(args, "no_web_dashboard", False) and now - last_dashboard_push >= 0.5:
@@ -344,7 +351,9 @@ async def run(args: argparse.Namespace) -> None:
                 )
                 try:
                     await asyncio.to_thread(_push_web_dashboard, cfg.server_url, web_payload)
+                    web_dashboard_status = f"정상 전송 ({time.strftime('%H:%M:%S')})"
                 except (URLError, TimeoutError, OSError) as exc:
+                    web_dashboard_status = f"전송 실패: {exc}"
                     print(f"웹 대시보드 전송 실패(계속 진행합니다): {exc}")
 
             # 낙차/계단이 활성인 동안에는 지도 회전이나 장애물 회피를 실행하지
