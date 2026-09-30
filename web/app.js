@@ -1292,6 +1292,23 @@ async function pollSensorDashboard() {
   }
 }
 
+// 센서가 한 틱 동안 유효한 값을 못 주면(레인지 초과, I2C 순간 끊김 등) null이 온다.
+// 그때마다 바로 "-"로 바꾸면 화면이 깜빡여 보여서, 최근 유효값을 이 시간(ms) 동안
+// 붙들고 있다가 그래도 안 돌아오면 그제서야 "-"로 바꾼다. 표시 전용 캐시라 실제
+// 회전/회피 판단에 쓰이는 값(하드웨어 쪽 right_mm 등)에는 전혀 영향을 주지 않는다.
+const STAT_HOLD_MS = 3000;
+const lastGoodStatValues = {};
+
+function holdLastGoodStat(key, rawValue) {
+  const now = Date.now();
+  if (rawValue != null) {
+    lastGoodStatValues[key] = { value: rawValue, at: now };
+    return rawValue;
+  }
+  const held = lastGoodStatValues[key];
+  return held && now - held.at <= STAT_HOLD_MS ? held.value : null;
+}
+
 // slot: 실제 센서 위치에 맞춰 배치한 자리(index.html의 #stat-* 컨테이너, 카드
 // 자체는 정적 HTML에 이미 있고 여기서는 안쪽 라벨/값만 채운다).
 const DATA_STAT_DEFS = [
@@ -1319,7 +1336,8 @@ function renderDataStatCards(stats) {
     const valueRow = document.createElement("div");
     valueRow.className = "data-stat-card__value-row";
     const valueEl = document.createElement("strong");
-    valueEl.textContent = stats[key];
+    const displayValue = holdLastGoodStat(key, stats[key]);
+    valueEl.textContent = displayValue == null ? "-" : displayValue;
     const unitEl = document.createElement("span");
     unitEl.className = "data-stat-card__unit";
     unitEl.textContent = unit;
