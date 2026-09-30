@@ -29,7 +29,7 @@ class BleWristController:
 
     async def connect(self, side: Side) -> None:
         if side is Side.BOTH:
-            await asyncio.gather(self.connect(Side.LEFT), self.connect(Side.RIGHT))
+            await asyncio.gather(self.connect(Side.LEFT), self.connect(Side.RIGHT), return_exceptions=True)
             return
         if self.simulate:
             self.statuses[side] = WristStatus(True, 88, "SIM_CONNECTED")
@@ -60,7 +60,14 @@ class BleWristController:
 
     async def send(self, pattern: PulsePattern) -> None:
         sides = (Side.LEFT, Side.RIGHT) if pattern.side is Side.BOTH else (pattern.side,)
-        await asyncio.gather(*(self._send_one(side, pattern) for side in sides))
+        results = await asyncio.gather(
+            *(self._send_one(side, pattern) for side in sides),
+            return_exceptions=True,
+        )
+        for side, result in zip(sides, results):
+            if isinstance(result, BaseException):
+                self.statuses[side].connected = False
+                self.statuses[side].last_response = f"ERROR:{result}"
 
     async def _send_one(self, side: Side, pattern: PulsePattern) -> None:
         await self._ensure(side)
@@ -81,11 +88,39 @@ class BleWristController:
             pass
 
     async def stop(self) -> None:
-        await self.send(PulsePattern(Side.BOTH, ()))
+        if self.simulate:
+            await self.send(PulsePattern(Side.BOTH, ()))
+            return
+        # Shutdown must never start a new BLE scan. Stop only wrists that are
+        # already connected, so a missing wrist cannot crash final cleanup.
+        tasks = []
+        for side, client in tuple(self.clients.items()):
+            if getattr(client, "is_connected", False):
+                tasks.append(client.write_gatt_char(COMMAND_UUID, b"S", response=True))
+            else:
+                self.statuses[side].connected = False
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
 
     async def close(self) -> None:
-        for client in self.clients.values():
+        for client in tuple(self.clients.values()):
             if getattr(client, "is_connected", False):
-                await client.disconnect()
+                try:
+                    await client.disconnect()
+                except Exception:
+                    pass
         self.clients.clear()
+
+    def status_text(self) -> str:
+        parts = []
+        for side, label in ((Side.LEFT, "L"), (Side.RIGHT, "R")):
+            status = self.statuses[side]
+            if status.connected:
+                value = "connected"
+            elif status.last_response.startswith("ERROR:"):
+                value = "missing"
+            else:
+                value = "waiting"
+            parts.append(f"{label}:{value}")
+        return " / ".join(parts)
 

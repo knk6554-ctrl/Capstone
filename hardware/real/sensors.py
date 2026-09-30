@@ -107,7 +107,9 @@ class TofRig:
         try:
             self.select(channel)
             sensor.start_ranging()
-            time.sleep(0.01)
+            # VL53L1X needs enough time to complete a ranging cycle after
+            # start_ranging(); this applies to both left and right sensors.
+            time.sleep(0.03)
             value = sensor.get_distance()
             sensor.stop_ranging()
         except OSError:
