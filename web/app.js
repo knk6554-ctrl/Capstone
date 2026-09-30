@@ -1224,6 +1224,243 @@ function renderSensorStatus(sensors) {
 }
 
 // ---------------------------------------------------------------------------
+// 센서 데이터 대시보드 ("데이터" 탭)
+//
+// 지금은 실제 센서 연동이 없다 — renderSensorDashboard(data)는 순수 렌더 함수로,
+// 어디서 온 데이터든 그 모양(shape)만 맞으면 그린다. "데이터를 가져오는 부분"과
+// "화면에 그리는 부분"을 분리해뒀으니, 나중에 fetch로 바꿀 때 render 쪽은
+// 건드릴 필요가 없다.
+// ---------------------------------------------------------------------------
+
+// TODO: 실제 API 연동 시 이 부분을 fetch 결과로 교체
+// 예: const data = await api("/api/sensors/dashboard");
+const DUMMY_SENSOR_DASHBOARD_DATA = {
+  stats: {
+    leftSideMm: 850,
+    rightSideMm: 1180,
+    rotationDeg: 56,
+    gyroZOffsetDegPerSec: 0.42,
+    gyroZFinalDegPerSec: 3.1,
+  },
+  statusSummary: [
+    { level: "good", label: "정상", count: 2 },
+    { level: "warning", label: "경고", count: 1 },
+    { level: "critical", label: "위험", count: 1 },
+  ],
+  imu: {
+    direction: "RIGHT", // "LEFT" | "RIGHT"
+    angleDeg: 56,
+  },
+  tof: {
+    // 8행 x 8열, mm 단위. 유효 범위는 0~4000mm.
+    front: [
+      [1800, 1750, 1600, 1500, 1520, 1690, 1800, 1900],
+      [1700, 1600, 1400, 1200, 1250, 1550, 1700, 1850],
+      [1500, 1300, 950, 700, 750, 1050, 1450, 1650],
+      [1200, 900, 550, 320, 340, 620, 1100, 1400],
+      [1150, 850, 500, 280, 300, 580, 1050, 1380],
+      [1400, 1150, 800, 600, 650, 900, 1350, 1600],
+      [1650, 1450, 1200, 1050, 1080, 1300, 1600, 1800],
+      [1850, 1700, 1550, 1450, 1470, 1650, 1800, 2000],
+    ],
+    down: [
+      [2000, 2050, 2100, 2080, 2090, 2100, 2050, 2000],
+      // 4500mm은 유효 범위(0~4000mm) 밖 — "-"/회색 셀로 표시되는지 확인용 더미값.
+      [2100, 4500, 2200, 2150, 2160, 2200, 2150, 2100],
+      [2200, 2200, 2250, 2200, 2200, 2250, 2200, 2200],
+      [2300, 2250, 2300, 2280, 2280, 2300, 2250, 2300],
+      [2300, 2300, 2300, 2300, 2300, 2300, 2300, 2300],
+      [2250, 2280, 2300, 2300, 2300, 2300, 2280, 2250],
+      [2200, 2220, 2250, 2260, 2260, 2250, 2220, 2200],
+      [2100, 2150, 2180, 2200, 2200, 2180, 2150, 2100],
+    ],
+  },
+};
+
+// TODO: 실제 API 연동 시 이 함수 본문을 fetch 호출로 교체하고 async로 바꾼다.
+function loadSensorDashboardData() {
+  return DUMMY_SENSOR_DASHBOARD_DATA;
+}
+
+// data 하나만 받아서 대시보드 전체를 그리는 순수 렌더 함수 — 네트워크 호출 없음.
+function renderSensorDashboard(data) {
+  renderDataStatCards(data.stats);
+  renderStatusChips(data.statusSummary);
+  renderImuGauge(data.imu);
+  renderTofHeatmap(document.querySelector("#tof-front-table"), data.tof.front);
+  renderTofHeatmap(document.querySelector("#tof-down-table"), data.tof.down);
+}
+
+const DATA_STAT_DEFS = [
+  { key: "leftSideMm", label: "좌측 측면 거리", unit: "mm" },
+  { key: "rightSideMm", label: "우측 측면 거리", unit: "mm" },
+  { key: "rotationDeg", label: "측정 회전각", unit: "°" },
+  { key: "gyroZOffsetDegPerSec", label: "Z축 오프셋", unit: "°/s" },
+  { key: "gyroZFinalDegPerSec", label: "측정 종료 시 Z축 각속도", unit: "°/s" },
+];
+
+function renderDataStatCards(stats) {
+  const container = document.querySelector("#data-stat-grid");
+  if (!container) return;
+  container.replaceChildren(
+    ...DATA_STAT_DEFS.map(({ key, label, unit }) => {
+      const card = document.createElement("article");
+      card.className = "data-stat-card";
+
+      const labelEl = document.createElement("span");
+      labelEl.className = "data-stat-card__label";
+      labelEl.textContent = label;
+
+      const valueRow = document.createElement("div");
+      valueRow.className = "data-stat-card__value-row";
+      const valueEl = document.createElement("strong");
+      valueEl.textContent = stats[key];
+      const unitEl = document.createElement("span");
+      unitEl.className = "data-stat-card__unit";
+      unitEl.textContent = unit;
+      valueRow.append(valueEl, unitEl);
+
+      card.append(labelEl, valueRow);
+      return card;
+    }),
+  );
+}
+
+function renderStatusChips(summary) {
+  const container = document.querySelector("#status-chip-group");
+  if (!container) return;
+  container.replaceChildren(
+    ...summary.map(({ level, label, count }) => {
+      const chip = document.createElement("span");
+      chip.className = `status-chip status-chip--${level}`;
+      chip.textContent = `${label} (${count})`;
+      return chip;
+    }),
+  );
+}
+
+// 반원형(180도) IMU 회전각 게이지 — 중앙(0°)에서 좌/우로 진행 아크를 그린다.
+const IMU_GAUGE_MAX_DEG = 90;
+
+function polarToCartesian(cx, cy, r, angleDeg) {
+  const rad = ((angleDeg - 90) * Math.PI) / 180;
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+}
+
+function describeArc(cx, cy, r, startAngle, endAngle) {
+  const start = polarToCartesian(cx, cy, r, endAngle);
+  const end = polarToCartesian(cx, cy, r, startAngle);
+  const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+  return `M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArcFlag} 0 ${end.x} ${end.y}`;
+}
+
+function renderImuGauge({ direction, angleDeg }) {
+  const container = document.querySelector("#imu-gauge-card");
+  if (!container) return;
+  const clamped = Math.max(0, Math.min(IMU_GAUGE_MAX_DEG, Math.abs(angleDeg)));
+  const isLeft = direction === "LEFT";
+  const directionLabel = isLeft ? "좌회전" : direction === "RIGHT" ? "우회전" : "정지";
+  const trackPath = describeArc(60, 60, 50, -90, 90);
+  const progressPath = isLeft
+    ? describeArc(60, 60, 50, -clamped, 0)
+    : describeArc(60, 60, 50, 0, clamped);
+
+  container.replaceChildren();
+  const heading = document.createElement("h3");
+  heading.textContent = "IMU 회전각";
+
+  const wrapper = document.createElement("div");
+  wrapper.className = "imu-gauge";
+  wrapper.innerHTML = `
+    <svg viewBox="0 0 120 68" role="img" aria-label="${directionLabel} ${clamped.toFixed(0)}도">
+      <path d="${trackPath}" class="imu-gauge__track"></path>
+      <path
+        d="${progressPath}"
+        class="imu-gauge__progress ${isLeft ? "is-left" : "is-right"}"
+      ></path>
+    </svg>
+  `;
+
+  const readout = document.createElement("div");
+  readout.className = "imu-gauge__readout";
+  const directionEl = document.createElement("strong");
+  directionEl.textContent = directionLabel;
+  const angleEl = document.createElement("span");
+  angleEl.textContent = `${clamped.toFixed(0)}°`;
+  readout.append(directionEl, angleEl);
+
+  container.append(heading, wrapper, readout);
+}
+
+// ToF 거리를 배경색으로 표현 — 가까울수록 위험색(횡단보도색), 중간은 계단색(주황),
+// 멀수록 안전색(초록)으로 이어지는 그라데이션. 색은 새로 만들지 않고 기존 CSS
+// 변수 값을 그대로 읽어와 보간한다(라이트/다크 모드 값 차이도 자동으로 반영됨).
+const TOF_VALID_MIN_MM = 0;
+const TOF_VALID_MAX_MM = 4000;
+
+function readCssColorHex(varName) {
+  const value = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+  return value || "#8a938e";
+}
+
+function hexToRgb(hex) {
+  const clean = hex.replace("#", "");
+  const expanded =
+    clean.length === 3
+      ? clean
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : clean;
+  const value = parseInt(expanded, 16);
+  return { r: (value >> 16) & 255, g: (value >> 8) & 255, b: value & 255 };
+}
+
+function lerpChannel(a, b, t) {
+  return Math.round(a + (b - a) * t);
+}
+
+function lerpColor(hexA, hexB, t) {
+  const a = hexToRgb(hexA);
+  const b = hexToRgb(hexB);
+  return `rgb(${lerpChannel(a.r, b.r, t)}, ${lerpChannel(a.g, b.g, t)}, ${lerpChannel(a.b, b.b, t)})`;
+}
+
+function tofDistanceColor(mm) {
+  const t = Math.max(0, Math.min(1, mm / TOF_VALID_MAX_MM));
+  const near = readCssColorHex("--hazard-crosswalk");
+  const mid = readCssColorHex("--hazard-stairs");
+  const far = readCssColorHex("--start-green");
+  return t < 0.5 ? lerpColor(near, mid, t / 0.5) : lerpColor(mid, far, (t - 0.5) / 0.5);
+}
+
+function renderTofHeatmap(table, grid) {
+  if (!table) return;
+  table.replaceChildren(
+    ...grid.map((row) => {
+      const tr = document.createElement("tr");
+      tr.append(
+        ...row.map((mm) => {
+          const td = document.createElement("td");
+          const valid =
+            typeof mm === "number" && mm >= TOF_VALID_MIN_MM && mm <= TOF_VALID_MAX_MM;
+          if (valid) {
+            td.className = "heatmap-cell";
+            td.textContent = String(mm);
+            td.style.backgroundColor = tofDistanceColor(mm);
+          } else {
+            td.className = "heatmap-cell heatmap-cell--invalid";
+            td.textContent = "-";
+          }
+          return td;
+        }),
+      );
+      return tr;
+    }),
+  );
+}
+
+// ---------------------------------------------------------------------------
 // 위험 버튼 알림
 //
 // 실제 벨트의 비상 버튼이 서버에 알림을 등록하면, 이 페이지가 몇 초마다 폴링해서
@@ -1291,3 +1528,6 @@ async function acknowledgeEmergency() {
 
 window.addEventListener("beforeunload", stopNavigation);
 initialize();
+
+// "데이터" 탭 대시보드는 지도/네트워크와 무관하게 항상 그릴 수 있으니 따로 초기화한다.
+renderSensorDashboard(loadSensorDashboardData());

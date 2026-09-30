@@ -1230,6 +1230,217 @@ button:disabled {
 }
 
 /* ==========================================================================
+   센서 데이터 대시보드 ("데이터" 탭) — 지금은 더미 데이터 렌더링용
+   ========================================================================== */
+
+/* 1) 상단 통계 카드 5개 — 폭이 좁아지면(사이드 패널/모바일 시트) 자동으로 줄바꿈 */
+.data-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(108px, 1fr));
+  gap: 0.6rem;
+  margin-top: 1.1rem;
+}
+
+.data-stat-card {
+  padding: 0.85rem 0.8rem;
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+}
+
+.data-stat-card__label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  letter-spacing: 0.01em;
+}
+
+.data-stat-card__value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  margin-top: 0.4rem;
+}
+
+.data-stat-card__value-row strong {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  line-height: 1;
+}
+
+.data-stat-card__unit {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* 2) 메인 2단 구성 — 자체 폭이 좁으면 grid가 자연스럽게 1단으로 무너진다 */
+.data-main-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.9rem;
+  margin-top: 1.1rem;
+}
+
+.data-status-column,
+.heatmap-card {
+  min-width: 0;
+}
+
+.data-status-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.data-status-column h3,
+.heatmap-card h3 {
+  margin-bottom: 0.6rem;
+}
+
+/* 센서 상태 요약 pill 칩 — 클릭 동작 없는 정보 표시 전용 */
+.status-chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.status-chip {
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--field);
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+}
+
+.status-chip--good {
+  border-color: var(--start-green);
+  background: rgba(47, 111, 94, 0.12);
+  color: var(--start-green);
+}
+
+.status-chip--warning {
+  border-color: var(--hazard-stairs);
+  background: var(--hazard-stairs-tint);
+  color: var(--hazard-stairs);
+}
+
+.status-chip--critical {
+  border-color: var(--hazard-crosswalk);
+  background: var(--hazard-crosswalk-tint);
+  color: var(--hazard-crosswalk);
+}
+
+/* IMU 회전각 반원형 게이지 카드 */
+.imu-gauge-card {
+  padding: 0.9rem 1rem 1.1rem;
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+.imu-gauge svg {
+  width: 100%;
+  max-width: 220px;
+  height: auto;
+}
+
+.imu-gauge__track {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 8;
+  stroke-linecap: round;
+}
+
+.imu-gauge__progress {
+  fill: none;
+  stroke-width: 8;
+  stroke-linecap: round;
+}
+
+.imu-gauge__progress.is-left {
+  stroke: var(--hazard-stairs);
+}
+
+.imu-gauge__progress.is-right {
+  stroke: var(--start-green);
+}
+
+.imu-gauge__readout {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.4rem;
+  margin-top: -0.6rem;
+}
+
+.imu-gauge__readout strong {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.imu-gauge__readout span {
+  font-size: 1.1rem;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  color: var(--ink);
+}
+
+/* ToF 히트맵 카드 — 기존 색상만으로 만든 그라데이션 배경 */
+.heatmap-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 0.9rem 1rem 1.1rem;
+  background: linear-gradient(160deg, var(--field), var(--mist));
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+}
+
+.heatmap-card__unit {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: none;
+}
+
+.heatmap-scroll {
+  overflow-x: auto;
+}
+
+.heatmap-table {
+  border-collapse: separate;
+  border-spacing: 2px;
+  width: 100%;
+  min-width: 300px;
+}
+
+.heatmap-cell {
+  min-width: 34px;
+  padding: 0.3rem 0.15rem;
+  border-radius: 4px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+.heatmap-cell--invalid {
+  background: var(--line-soft);
+  color: var(--muted);
+}
+
+/* ==========================================================================
    Footer
    ========================================================================== */
 

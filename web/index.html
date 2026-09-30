@@ -12,7 +12,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2/dist/tabler-icons.min.css" />
-    <link rel="stylesheet" href="/static/styles.css?v=reset-btn-size" />
+    <link rel="stylesheet" href="/static/styles.css?v=data-dashboard" />
   </head>
   <body>
     <a class="skip-link" href="#main-content">본문으로 바로가기</a>
@@ -96,6 +96,10 @@
         <button type="button" class="tab-button" data-tab="sensor" title="센서 및 시뮬레이터">
           <i class="ti ti-activity" aria-hidden="true"></i>
           <span class="tab-label">센서</span>
+        </button>
+        <button type="button" class="tab-button" data-tab="data" title="센서 데이터 대시보드">
+          <i class="ti ti-chart-histogram" aria-hidden="true"></i>
+          <span class="tab-label">데이터</span>
         </button>
       </div>
 
@@ -302,6 +306,52 @@
           </ul>
         </section>
 
+        <!-- 센서 데이터 대시보드 (현재는 더미 데이터 — renderSensorDashboard()가 그린다) -->
+        <section class="tab-panel" id="tab-data" aria-labelledby="data-heading">
+          <div class="section-heading">
+            <div>
+              <h2 id="data-heading">센서 데이터 대시보드</h2>
+              <p>ToF·IMU 원시 측정값을 한 화면에서 확인합니다.</p>
+            </div>
+          </div>
+
+          <!-- 1) 상단 통계 카드 — renderDataStatCards()가 채운다 -->
+          <div class="data-stat-grid" id="data-stat-grid"></div>
+
+          <!-- 2) 메인 2단 구성 -->
+          <div class="data-main-grid">
+            <div class="data-status-column">
+              <h3>센서 상태 요약</h3>
+              <div class="status-chip-group" id="status-chip-group" aria-live="polite"></div>
+
+              <div class="imu-gauge-card" id="imu-gauge-card"></div>
+            </div>
+
+            <div class="heatmap-card">
+              <div>
+                <h3>전방 ToF 8×8 <span class="heatmap-card__unit">mm</span></h3>
+                <div class="heatmap-scroll">
+                  <table
+                    class="heatmap-table"
+                    id="tof-front-table"
+                    aria-label="전방 ToF 8x8 거리 히트맵"
+                  ></table>
+                </div>
+              </div>
+              <div>
+                <h3>하향 ToF 8×8 <span class="heatmap-card__unit">mm</span></h3>
+                <div class="heatmap-scroll">
+                  <table
+                    class="heatmap-table"
+                    id="tof-down-table"
+                    aria-label="하향 ToF 8x8 거리 히트맵"
+                  ></table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <footer class="panel__footer">
           <strong>안전 및 접근성 안내</strong>
           <span>본 시스템은 프로토타입 연구용이며 흰지팡이 및 안내견 등 표준 보행 보조 수단을 보완하도록 설계되었습니다.</span>
@@ -309,6 +359,6 @@
       </div>
     </main>
 
-    <script src="/static/app.js?v=reset-btn-size" defer></script>
+    <script src="/static/app.js?v=data-dashboard" defer></script>
   </body>
 </html>
