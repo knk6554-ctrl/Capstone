@@ -1374,7 +1374,7 @@ function renderImuGauge({ direction, angleDeg }) {
   const wrapper = document.createElement("div");
   wrapper.className = "imu-gauge";
   wrapper.innerHTML = `
-    <svg viewBox="0 0 120 68" role="img" aria-label="${directionLabel} ${clamped.toFixed(0)}도">
+    <svg viewBox="0 0 120 62" role="img" aria-label="${directionLabel} ${clamped.toFixed(0)}도">
       <path d="${trackPath}" class="imu-gauge__track"></path>
       <path
         d="${progressPath}"

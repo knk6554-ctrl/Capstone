@@ -43,7 +43,7 @@
 
   --panel-width: 400px;
   /* "데이터" 탭이 열려 있는 동안 데스크톱 패널이 넓어지는 목표 폭 */
-  --panel-width-expanded: min(820px, calc(100vw - 2rem));
+  --panel-width-expanded: min(980px, calc(100vw - 2rem));
 }
 
 @media (prefers-color-scheme: dark) {
@@ -1323,8 +1323,8 @@ button:disabled {
 
 /* 센서 상태 요약 pill 칩 — 클릭 동작 없는 정보 표시 전용 */
 .status-chip-group {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 0.5rem;
 }
 
@@ -1337,9 +1337,11 @@ button:disabled {
   font-size: 0.8rem;
   font-weight: 700;
   font-family: var(--font-mono);
+  text-align: center;
 }
 
 .status-chip--good {
+  grid-column: 1 / -1;
   border-color: var(--start-green);
   background: rgba(47, 111, 94, 0.12);
   color: var(--start-green);
@@ -1398,7 +1400,7 @@ button:disabled {
   align-items: baseline;
   justify-content: center;
   gap: 0.4rem;
-  margin-top: -0.6rem;
+  margin-top: -1.1rem;
 }
 
 .imu-gauge__readout strong {
@@ -1440,11 +1442,11 @@ button:disabled {
   border-collapse: separate;
   border-spacing: 2px;
   width: 100%;
-  min-width: 300px;
+  min-width: 280px;
 }
 
 .heatmap-cell {
-  min-width: 34px;
+  min-width: 31px;
   padding: 0.3rem 0.15rem;
   border-radius: 4px;
   text-align: center;
@@ -1519,7 +1521,8 @@ button:disabled {
   /* 패널이 넓어진 동안엔 하향 ToF도 전방 ToF 옆으로 나란히 붙인다(세로로 쌓지 않음).
      상태 요약/게이지 칸은 좁게, 히트맵 두 칸 쪽에 더 많은 폭을 몰아준다. */
   .panel:has(#tab-data.is-active) .data-main-grid {
-    grid-template-columns: minmax(170px, 0.85fr) minmax(220px, 1.1fr) minmax(220px, 1.1fr);
+    /* 히트맵 8칸이 스크롤 없이 한 번에 다 보이도록 각 히트맵 칸에 충분한 최소 폭(320px)을 둔다 */
+    grid-template-columns: minmax(170px, 0.7fr) minmax(320px, 1.15fr) minmax(320px, 1.15fr);
   }
 
   /* 패널이 넓어진 동안에는 지도 위 컨트롤을 배경처럼 비활성화한다(위험 알림 배너는 제외).
