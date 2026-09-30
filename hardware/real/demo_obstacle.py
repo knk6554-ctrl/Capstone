@@ -51,6 +51,7 @@ async def rotate(runtime: DemoRuntime, target: float, label: str) -> bool:
 
 
 async def demo(runtime: DemoRuntime) -> None:
+    blocked_frames = 0
     while True:
         payload = await runtime.sample("장애물 배치 대기")
         front_blocked = virtual_front_blocked(payload["front"], runtime.args.virtual_front_mm)
@@ -59,8 +60,19 @@ async def demo(runtime: DemoRuntime) -> None:
             and payload["right_mm"] <= runtime.args.right_blocked_mm
         )
         if not (front_blocked and right_blocked):
+            blocked_frames = 0
             await asyncio.sleep(runtime.args.interval)
             continue
+        blocked_frames += 1
+        if blocked_frames < runtime.args.obstacle_confirm_frames:
+            await runtime.sample(
+                f"장애물 후보 확인 {blocked_frames}/{runtime.args.obstacle_confirm_frames}",
+                obstacle="장애물 확인 중",
+                avoidance="판정 대기",
+            )
+            await asyncio.sleep(runtime.args.interval)
+            continue
+        blocked_frames = 0
 
         await runtime.haptic("OBSTACLE", PulsePattern(Side.BOTH, (220, 220), (180,), 230), 2.0)
         payload = await runtime.sample(
@@ -112,9 +124,12 @@ async def demo(runtime: DemoRuntime) -> None:
 
         await runtime.wait_with_sensors(2.0, "원래 방향 직진", avoidance="직진 가능")
         # Do not immediately retrigger while the demonstration boxes remain.
+        clear_frames = 0
         while True:
             payload = await runtime.sample("시연 완료 · 장애물 제거 대기")
-            if not virtual_front_blocked(payload["front"], runtime.args.virtual_front_mm):
+            clear = not virtual_front_blocked(payload["front"], runtime.args.virtual_front_mm)
+            clear_frames = clear_frames + 1 if clear else 0
+            if clear_frames >= runtime.args.obstacle_clear_frames:
                 break
             await asyncio.sleep(runtime.args.interval)
 
@@ -126,6 +141,8 @@ def main() -> None:
     parser.add_argument("--right-blocked-mm", type=int, default=650)
     parser.add_argument("--left-blocked-mm", type=int, default=650)
     parser.add_argument("--forward-seconds", type=float, default=2.0)
+    parser.add_argument("--obstacle-confirm-frames", type=int, default=3)
+    parser.add_argument("--obstacle-clear-frames", type=int, default=5)
     args = parser.parse_args()
     runtime = DemoRuntime(args, "3. 장애물 회피")
     asyncio.run(run_safely(runtime, demo))

@@ -419,7 +419,8 @@ def render_terminal(payload: dict[str, Any]) -> str:
         f"[웹 대시보드] {payload.get('web_dashboard_status', '아직 전송 안 함')}",
     ]
     if payload.get("front_enabled", True):
-        lines.extend(("", "전방 ToF 8×8 (mm)", grid(payload["front"])))
+        front_label = payload.get("front_label", "전방 ToF 8×8")
+        lines.extend(("", f"{front_label} (mm)", grid(payload["front"])))
     lines.extend((
         "",
         "하향 ToF 8×8 (mm)",

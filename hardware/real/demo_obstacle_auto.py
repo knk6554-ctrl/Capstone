@@ -60,6 +60,8 @@ def choose_avoidance(
 
 
 async def demo(runtime: DemoRuntime) -> None:
+    candidate_key: str | None = None
+    candidate_frames = 0
     while True:
         payload = await runtime.sample("센서 기반 장애물 감시")
         angle = choose_avoidance(
@@ -70,8 +72,26 @@ async def demo(runtime: DemoRuntime) -> None:
             side_clear_mm=runtime.args.side_clear_mm,
         )
         if angle == 0.0:
+            candidate_key = None
+            candidate_frames = 0
             await asyncio.sleep(runtime.args.interval)
             continue
+        current_key = "STOP" if angle is None else "LEFT" if angle < 0 else "RIGHT"
+        if current_key == candidate_key:
+            candidate_frames += 1
+        else:
+            candidate_key = current_key
+            candidate_frames = 1
+        if candidate_frames < runtime.args.obstacle_confirm_frames:
+            await runtime.sample(
+                f"장애물 후보 확인 {candidate_frames}/{runtime.args.obstacle_confirm_frames}",
+                obstacle="장애물 확인 중",
+                avoidance="판정 대기",
+            )
+            await asyncio.sleep(runtime.args.interval)
+            continue
+        candidate_key = None
+        candidate_frames = 0
         if angle is None:
             await runtime.haptic("AUTO_STOP", PulsePattern(Side.BOTH, (150, 150), (100,), 255), 1.5)
             await runtime.sample("좌우 통로 없음 · 정지", obstacle="장애물 감지", avoidance="통로 없음 · 정지", avoidance_angle=None)
@@ -107,6 +127,7 @@ async def demo(runtime: DemoRuntime) -> None:
         await runtime.wait_with_sensors(2.0, "원래 방향 직진", avoidance="직진 가능")
 
         # Require removal before another automatic demonstration begins.
+        clear_frames = 0
         while True:
             payload = await runtime.sample("자동 회피 완료 · 장애물 제거 대기")
             next_angle = choose_avoidance(
@@ -114,7 +135,8 @@ async def demo(runtime: DemoRuntime) -> None:
                 obstacle_mm=runtime.args.virtual_front_mm,
                 side_clear_mm=runtime.args.side_clear_mm,
             )
-            if next_angle == 0.0:
+            clear_frames = clear_frames + 1 if next_angle == 0.0 else 0
+            if clear_frames >= runtime.args.obstacle_clear_frames:
                 break
             await asyncio.sleep(runtime.args.interval)
 
@@ -125,6 +147,8 @@ def main() -> None:
     parser.add_argument("--virtual-front-mm", type=int, default=1000)
     parser.add_argument("--side-clear-mm", type=int, default=650)
     parser.add_argument("--forward-seconds", type=float, default=2.0)
+    parser.add_argument("--obstacle-confirm-frames", type=int, default=3)
+    parser.add_argument("--obstacle-clear-frames", type=int, default=5)
     args = parser.parse_args()
     runtime = DemoRuntime(args, "3-B. 센서 자동 장애물 회피")
     asyncio.run(run_safely(runtime, demo))
