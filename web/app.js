@@ -1292,41 +1292,41 @@ async function pollSensorDashboard() {
   }
 }
 
-// wide: 라벨이 길어서(특히 "측정 종료 시 Z축 각속도") 한 칸으로는 줄바꿈이 어색하게
-// 걸리던 카드 — 나머지 1칸짜리 카드보다 1.5배 넓은 칸을 차지하게 한다.
+// slot: 실제 센서 위치에 맞춰 배치한 자리(index.html의 #stat-* 컨테이너, 카드
+// 자체는 정적 HTML에 이미 있고 여기서는 안쪽 라벨/값만 채운다).
 const DATA_STAT_DEFS = [
-  { key: "leftSideMm", label: "좌측 측면 거리", unit: "mm" },
-  { key: "rightSideMm", label: "우측 측면 거리", unit: "mm" },
-  { key: "rotationDeg", label: "측정 회전각", unit: "°" },
-  { key: "gyroZOffsetDegPerSec", label: "Z축 오프셋", unit: "°/s", wide: true },
-  { key: "gyroZFinalDegPerSec", label: "측정 종료 시 Z축 각속도", unit: "°/s", wide: true },
+  { key: "leftSideMm", label: "좌측 측면 거리", unit: "mm", slot: "stat-left" },
+  { key: "rightSideMm", label: "우측 측면 거리", unit: "mm", slot: "stat-right" },
+  { key: "rotationDeg", label: "측정 회전각", unit: "°", slot: "stat-angle-rotation" },
+  { key: "gyroZOffsetDegPerSec", label: "Z축 오프셋", unit: "°/s", slot: "stat-angle-offset" },
+  {
+    key: "gyroZFinalDegPerSec",
+    label: "측정 종료 시 Z축 각속도",
+    unit: "°/s",
+    slot: "stat-angle-rate",
+  },
 ];
 
 function renderDataStatCards(stats) {
-  const container = document.querySelector("#data-stat-grid");
-  if (!container) return;
-  container.replaceChildren(
-    ...DATA_STAT_DEFS.map(({ key, label, unit, wide }) => {
-      const card = document.createElement("article");
-      card.className = wide ? "data-stat-card data-stat-card--wide" : "data-stat-card";
+  for (const { key, label, unit, slot } of DATA_STAT_DEFS) {
+    const card = document.querySelector(`#${slot}`);
+    if (!card) continue;
 
-      const labelEl = document.createElement("span");
-      labelEl.className = "data-stat-card__label";
-      labelEl.textContent = label;
+    const labelEl = document.createElement("span");
+    labelEl.className = "data-stat-card__label";
+    labelEl.textContent = label;
 
-      const valueRow = document.createElement("div");
-      valueRow.className = "data-stat-card__value-row";
-      const valueEl = document.createElement("strong");
-      valueEl.textContent = stats[key];
-      const unitEl = document.createElement("span");
-      unitEl.className = "data-stat-card__unit";
-      unitEl.textContent = unit;
-      valueRow.append(valueEl, unitEl);
+    const valueRow = document.createElement("div");
+    valueRow.className = "data-stat-card__value-row";
+    const valueEl = document.createElement("strong");
+    valueEl.textContent = stats[key];
+    const unitEl = document.createElement("span");
+    unitEl.className = "data-stat-card__unit";
+    unitEl.textContent = unit;
+    valueRow.append(valueEl, unitEl);
 
-      card.append(labelEl, valueRow);
-      return card;
-    }),
-  );
+    card.replaceChildren(labelEl, valueRow);
+  }
 }
 
 function renderStatusChips(summary) {

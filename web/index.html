@@ -12,7 +12,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2/dist/tabler-icons.min.css" />
-    <link rel="stylesheet" href="/static/styles.css?v=live-sensor-dashboard1" />
+    <link rel="stylesheet" href="/static/styles.css?v=cross-layout1" />
   </head>
   <body>
     <a class="skip-link" href="#main-content">본문으로 바로가기</a>
@@ -315,19 +315,15 @@
             </div>
           </div>
 
-          <!-- 1) 상단 통계 카드 — renderDataStatCards()가 채운다 -->
-          <div class="data-stat-grid" id="data-stat-grid"></div>
+          <!-- 실제 센서 위치에 맞춘 배치: 좌/전방/우가 한 줄, 그 아래 가운데 하향,
+               맨 아래 상태 요약·IMU와 각도 수치 3개. renderDataStatCards() 등이
+               각 자리(#stat-*)를 채운다. 데스크톱 확장 폭에서만 이 순서대로 격자에
+               배치되고(styles.css의 grid-area), 좁은 화면에서는 DOM 순서 그대로
+               한 줄씩 쌓인다. -->
+          <div class="data-cross-grid" id="data-cross-grid">
+            <div class="data-stat-card" id="stat-left"></div>
 
-          <!-- 2) 메인 2단 구성 -->
-          <div class="data-main-grid">
-            <div class="data-status-column">
-              <h3>센서 상태 요약</h3>
-              <div class="status-chip-group" id="status-chip-group" aria-live="polite"></div>
-
-              <div class="imu-gauge-card" id="imu-gauge-card"></div>
-            </div>
-
-            <div class="heatmap-card">
+            <div class="heatmap-card" id="area-front">
               <h3>전방 ToF 8×8 <span class="heatmap-card__unit">mm</span></h3>
               <div class="heatmap-scroll">
                 <table
@@ -338,7 +334,9 @@
               </div>
             </div>
 
-            <div class="heatmap-card">
+            <div class="data-stat-card" id="stat-right"></div>
+
+            <div class="heatmap-card" id="area-down">
               <h3>하향 ToF 8×8 <span class="heatmap-card__unit">mm</span></h3>
               <div class="heatmap-scroll">
                 <table
@@ -348,6 +346,16 @@
                 ></table>
               </div>
             </div>
+
+            <div class="data-status-column" id="area-status">
+              <h3>센서 상태 요약</h3>
+              <div class="status-chip-group" id="status-chip-group" aria-live="polite"></div>
+              <div class="imu-gauge-card" id="imu-gauge-card"></div>
+            </div>
+
+            <div class="data-stat-card" id="stat-angle-rotation"></div>
+            <div class="data-stat-card" id="stat-angle-offset"></div>
+            <div class="data-stat-card" id="stat-angle-rate"></div>
           </div>
         </section>
 
@@ -358,6 +366,6 @@
       </div>
     </main>
 
-    <script src="/static/app.js?v=live-sensor-dashboard1" defer></script>
+    <script src="/static/app.js?v=cross-layout1" defer></script>
   </body>
 </html>
