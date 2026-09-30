@@ -252,10 +252,14 @@ def pending_haptics(
     after_sequence: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=100)] = 100,
 ) -> dict[str, object]:
-    items = _service(request).commands.after(after_sequence, limit)
+    service = _service(request)
+    items = service.commands.after(after_sequence, limit)
     return {
         "commands": [item.to_public_dict() for item in items],
         "lastSequence": items[-1].sequence if items else after_sequence,
+        # 게이트웨이가 자신의 저장된 순번이 "이전 서버 프로세스" 것인지 구분하는 데 쓴다
+        # (서버가 재시작되면 순번이 메모리에서 사라지고 1부터 다시 시작한다).
+        "serverInstanceId": service.instance_id,
     }
 
 

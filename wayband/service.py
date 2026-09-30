@@ -23,6 +23,10 @@ class WaybandService:
         self.settings = settings
         self.kakao = KakaoClient(settings.kakao_rest_api_key)
         self.commands = CommandBuffer()
+        # 프로세스가 재시작될 때마다 새로 생긴다 — 진동 명령 순번은 메모리에만
+        # 있어 재시작하면 1부터 다시 시작하는데, 게이트웨이(belt/, hardware/)가
+        # 이 값으로 "서버가 재시작돼서 내 순번 커서가 이제 의미 없다"를 감지한다.
+        self.instance_id = str(uuid4())
         self._routes: dict[str, RoutePlan] = {}
         self._sessions: dict[str, NavigationSession] = {}
         self._lock = Lock()

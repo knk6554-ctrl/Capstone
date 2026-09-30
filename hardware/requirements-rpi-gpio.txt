@@ -1,0 +1,2 @@
+# --wrist-output gpio(손목 팔찌 대신 라즈베리파이 GPIO로 모터 직결)를 쓸 때만 필요.
+gpiozero>=2.0

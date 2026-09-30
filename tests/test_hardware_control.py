@@ -1,4 +1,5 @@
 import sys
+import time
 import unittest
 from pathlib import Path
 
@@ -9,6 +10,7 @@ if str(REAL_DIR) not in sys.path:
 
 import control  # noqa: E402
 from wayband_hw.core.events import Side  # noqa: E402
+from wayband_hw.drivers.gpio_wrist import GpioWristController  # noqa: E402
 
 
 class FakeWrists:
@@ -97,6 +99,26 @@ class RotationControllerTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertFalse(ok)
         self.assertGreaterEqual(wrists.stopped, 1)
+
+    async def test_gpio_wrist_stops_early_instead_of_riding_out_the_full_timeout(self):
+        # 회귀 테스트: GpioWristController.send()가 펄스가 끝날 때까지 블로킹하던
+        # 시절에는, rotate()가 send()에서 timeout_seconds(여기선 5초) 전체를 그냥
+        # 기다린 뒤에야 IMU 폴링 루프에 들어갔다 — "목표각 도달 시 정지"가 전혀
+        # 동작하지 않았다. 지금은 send()가 즉시 반환하고 IMU가 목표를 확인하는
+        # 즉시 stop()으로 끊어야 하므로, 훨씬 빨리 끝나야 한다.
+        wrists = GpioWristController(simulate=True)
+        imu = ScriptedImu([90.0])  # 첫 프레임부터 목표(87도)를 넘어선다
+        controller = control.RotationController(
+            wrists, imu, tolerance_degrees=4.0, timeout_seconds=5.0
+        )
+
+        started = time.monotonic()
+        ok = await controller.rotate(87.0)
+        elapsed = time.monotonic() - started
+
+        self.assertTrue(ok)
+        self.assertLess(elapsed, 1.0)
+        self.assertEqual(wrists.motors[Side.RIGHT].calls[-1], ("off", 0.0))
 
 
 def _front_grid(default_mm=2000, near_columns=(), near_mm=500):

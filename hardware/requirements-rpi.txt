@@ -2,5 +2,6 @@ smbus2>=0.5,<1
 sparkfun-qwiic-vl53l5cx>=2,<3
 sparkfun-qwiic-vl53l1x>=2,<3
 bleak>=1,<4
-# --wrist-output gpio일 때만 필요 (BLE만 쓰면 설치 안 해도 됨)
-gpiozero>=2.0
+# --wrist-output gpio를 쓰려면 requirements-rpi-gpio.txt도 함께 설치하세요:
+#   pip install -r hardware/requirements-rpi.txt -r hardware/requirements-rpi-gpio.txt
+# BLE만 쓴다면(기본값) 이 파일만 설치하면 됩니다.

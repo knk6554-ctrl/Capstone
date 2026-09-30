@@ -132,5 +132,84 @@ class PollFilteringTests(unittest.TestCase):
             self.assertEqual(result[0].angle_degrees, -90.0)
 
 
+class ServerRestartDetectionTests(unittest.TestCase):
+    def _api(self, tmp, **kwargs):
+        return map_api.MapApi("http://unused", state_path=Path(tmp) / "state.json", **kwargs)
+
+    def test_first_ever_poll_adopts_server_instance_id_without_reset(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            api = self._api(tmp)
+            self.assertIsNone(api.server_instance_id)
+            payload = FakeResponse({"commands": [_command(3)], "serverInstanceId": "instance-a"})
+
+            with patch.object(map_api, "urlopen", return_value=payload) as mock_urlopen:
+                result = api.poll()
+
+            self.assertEqual(api.server_instance_id, "instance-a")
+            self.assertEqual(api.sequence, 3)
+            self.assertEqual(len(result), 1)
+            self.assertEqual(mock_urlopen.call_count, 1)
+
+    def test_server_restart_resets_sequence_and_retries_within_same_poll(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            api = self._api(tmp)
+            first = FakeResponse({"commands": [_command(5)], "serverInstanceId": "instance-a"})
+            with patch.object(map_api, "urlopen", return_value=first):
+                api.poll()
+            self.assertEqual(api.sequence, 5)
+
+            # 서버가 재시작됐다: 새 instanceId, 순번은 1부터 다시 시작한다. 우리가
+            # 보낸 after_sequence=5는 새 서버 기준으로 존재하지 않는 미래 순번이라
+            # 빈 응답이 오고, 순번을 0으로 리셋한 뒤에야 새 명령을 받는다.
+            empty_after_restart = FakeResponse({"commands": [], "serverInstanceId": "instance-b"})
+            fresh_after_reset = FakeResponse(
+                {"commands": [_command(2, pattern="STAIRS")], "serverInstanceId": "instance-b"}
+            )
+            with patch.object(
+                map_api, "urlopen", side_effect=[empty_after_restart, fresh_after_reset]
+            ) as mock_urlopen:
+                result = api.poll()
+
+            self.assertEqual(api.server_instance_id, "instance-b")
+            self.assertEqual(api.sequence, 2)
+            self.assertEqual(len(result), 1)
+            self.assertEqual(result[0].kind, CommandKind.STAIRS)
+            self.assertEqual(mock_urlopen.call_count, 2)
+            retry_url = mock_urlopen.call_args_list[1].args[0]
+            self.assertIn("after_sequence=0", retry_url)
+
+    def test_same_server_instance_id_does_not_reset_or_retry(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            api = self._api(tmp)
+            first = FakeResponse({"commands": [_command(5)], "serverInstanceId": "instance-a"})
+            with patch.object(map_api, "urlopen", return_value=first):
+                api.poll()
+
+            same = FakeResponse({"commands": [_command(6)], "serverInstanceId": "instance-a"})
+            with patch.object(map_api, "urlopen", return_value=same) as mock_urlopen:
+                api.poll()
+
+            self.assertEqual(api.sequence, 6)
+            self.assertEqual(mock_urlopen.call_count, 1)
+
+
+class SaveFailureResilienceTests(unittest.TestCase):
+    def test_state_save_failure_does_not_block_command_processing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            api = map_api.MapApi("http://unused", state_path=Path(tmp) / "state.json")
+            payload = FakeResponse(
+                {"commands": [_command(1, pattern="ARRIVED")], "serverInstanceId": "instance-a"}
+            )
+
+            with patch.object(map_api, "urlopen", return_value=payload), patch.object(
+                map_api.Path, "write_text", side_effect=OSError("읽기 전용 파일시스템")
+            ):
+                result = api.poll()
+
+            self.assertEqual(len(result), 1)
+            self.assertEqual(result[0].kind, CommandKind.ARRIVED)
+            self.assertEqual(api.sequence, 1)
+
+
 if __name__ == "__main__":
     unittest.main()
