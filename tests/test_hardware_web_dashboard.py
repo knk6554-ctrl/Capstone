@@ -35,54 +35,16 @@ def _web_payload(**overrides):
         blocked=False,
         avoidance_angle=None,
         haptic_status="시스템 준비 중",
-        side_clear_mm=650,
     )
     base.update(overrides)
     return hardware_main._web_dashboard_payload(**base)
-
-
-class WebDashboardStatLevelsTests(unittest.TestCase):
-    def test_all_clear_is_all_good(self):
-        levels = hardware_main._web_dashboard_stat_levels(
-            blocked=False, safety_events=[], left_mm=1800, right_mm=1800, side_clear_mm=650
-        )
-        self.assertEqual(levels, ["good", "good", "good", "good"])
-
-    def test_blocked_marks_front_critical(self):
-        levels = hardware_main._web_dashboard_stat_levels(
-            blocked=True, safety_events=[], left_mm=1800, right_mm=1800, side_clear_mm=650
-        )
-        self.assertEqual(levels[0], "critical")
-
-    def test_down_danger_is_critical_but_stair_up_is_only_warning(self):
-        drop = [WaybandEvent(EventKind.DOWN_DANGER, "DOWN_TOF")]
-        stairs = [WaybandEvent(EventKind.STAIR_UP, "FRONT_DOWN_TOF")]
-
-        levels_drop = hardware_main._web_dashboard_stat_levels(
-            blocked=False, safety_events=drop, left_mm=1800, right_mm=1800, side_clear_mm=650
-        )
-        levels_stairs = hardware_main._web_dashboard_stat_levels(
-            blocked=False, safety_events=stairs, left_mm=1800, right_mm=1800, side_clear_mm=650
-        )
-
-        self.assertEqual(levels_drop[1], "critical")
-        self.assertEqual(levels_stairs[1], "warning")
-
-    def test_side_proximity_marks_warning(self):
-        levels = hardware_main._web_dashboard_stat_levels(
-            blocked=False, safety_events=[], left_mm=400, right_mm=400, side_clear_mm=650
-        )
-        self.assertEqual(levels[2], "warning")
-        self.assertEqual(levels[3], "warning")
 
 
 class WebDashboardPayloadTests(unittest.TestCase):
     def test_matches_the_shape_web_app_js_expects(self):
         payload = _web_payload()
 
-        self.assertEqual(
-            set(payload.keys()), {"stats", "statusSummary", "imu", "tof", "decisions"}
-        )
+        self.assertEqual(set(payload.keys()), {"stats", "imu", "tof", "decisions"})
         self.assertEqual(
             set(payload["stats"].keys()),
             {
@@ -95,7 +57,6 @@ class WebDashboardPayloadTests(unittest.TestCase):
         )
         self.assertEqual(payload["stats"]["leftSideMm"], 850)
         self.assertEqual(payload["stats"]["gyroZOffsetDegPerSec"], 0.42)
-        self.assertEqual(len(payload["statusSummary"]), 3)
         self.assertEqual(payload["imu"], {"direction": "RIGHT", "angleDeg": 56.0})
 
     def test_flat_64_cell_grid_is_reshaped_to_8x8(self):

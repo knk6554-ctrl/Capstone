@@ -32,20 +32,9 @@ class WebDashboardPayloadTests(unittest.TestCase):
     def test_matches_the_shape_web_app_js_expects(self):
         payload = sensor_dashboard._web_dashboard_payload(_sensor_payload(), bias_dps=0.42)
 
-        self.assertEqual(
-            set(payload.keys()), {"stats", "statusSummary", "imu", "tof", "decisions"}
-        )
+        self.assertEqual(set(payload.keys()), {"stats", "imu", "tof", "decisions"})
         self.assertEqual(payload["stats"]["leftSideMm"], 850)
         self.assertEqual(payload["stats"]["gyroZOffsetDegPerSec"], 0.42)
-        self.assertEqual(len(payload["statusSummary"]), 3)
-
-    def test_normal_warning_danger_counts_map_to_good_warning_critical(self):
-        payload = sensor_dashboard._web_dashboard_payload(
-            _sensor_payload(counts={"normal": 1, "warning": 2, "danger": 3}), bias_dps=0.0
-        )
-
-        by_level = {item["level"]: item["count"] for item in payload["statusSummary"]}
-        self.assertEqual(by_level, {"good": 1, "warning": 2, "critical": 3})
 
     def test_flat_64_cell_grid_is_reshaped_to_8x8(self):
         payload = sensor_dashboard._web_dashboard_payload(_sensor_payload(), bias_dps=0.0)

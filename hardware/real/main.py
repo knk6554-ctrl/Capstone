@@ -127,25 +127,6 @@ def _dashboard_payload(
     }
 
 
-def _web_dashboard_stat_levels(
-    *, blocked: bool, safety_events, left_mm, right_mm, side_clear_mm: int
-) -> list[str]:
-    """센서 상태 요약 4지표(전방/계단·낙차/좌측/우측) — sensor_dashboard.py의 levels 계산과 같은 판정."""
-    kinds = {event.kind for event in safety_events}
-    levels = ["good", "good", "good", "good"]
-    if blocked:
-        levels[0] = "critical"
-    if EventKind.DOWN_DANGER in kinds:
-        levels[1] = "critical"
-    elif EventKind.STAIR_UP in kinds or EventKind.STAIR_DOWN in kinds:
-        levels[1] = "warning"
-    if left_mm is not None and left_mm <= side_clear_mm:
-        levels[2] = "warning"
-    if right_mm is not None and right_mm <= side_clear_mm:
-        levels[3] = "warning"
-    return levels
-
-
 def _web_dashboard_payload(
     *,
     front,
@@ -159,7 +140,6 @@ def _web_dashboard_payload(
     blocked: bool,
     avoidance_angle: float | None,
     haptic_status: str,
-    side_clear_mm: int,
 ) -> dict:
     """web/app.js의 renderSensorDashboard()가 그대로 그릴 수 있는 모양으로 재구성한다
     (web/app.js의 DUMMY_SENSOR_DASHBOARD_DATA와 정확히 같은 shape — render 함수는 그대로 둔다).
@@ -168,13 +148,6 @@ def _web_dashboard_payload(
     def grid(flat: list) -> list[list]:
         return [flat[row * 8 : row * 8 + 8] for row in range(8)]
 
-    levels = _web_dashboard_stat_levels(
-        blocked=blocked,
-        safety_events=safety_events,
-        left_mm=left_mm,
-        right_mm=right_mm,
-        side_clear_mm=side_clear_mm,
-    )
     obstacle, stairs, avoidance = _obstacle_stairs_avoidance_labels(
         safety_events=safety_events, blocked=blocked, avoidance_angle=avoidance_angle
     )
@@ -187,11 +160,6 @@ def _web_dashboard_payload(
             "gyroZOffsetDegPerSec": round(bias_dps, 2),
             "gyroZFinalDegPerSec": round(rate, 2),
         },
-        "statusSummary": [
-            {"level": "good", "label": "정상", "count": levels.count("good")},
-            {"level": "warning", "label": "경고", "count": levels.count("warning")},
-            {"level": "critical", "label": "위험", "count": levels.count("critical")},
-        ],
         "imu": {"direction": direction, "angleDeg": round(angle, 1)},
         "tof": {"front": grid(front), "down": grid(down)},
         "decisions": [
@@ -370,7 +338,6 @@ async def run(args: argparse.Namespace) -> None:
                     blocked=blocked,
                     avoidance_angle=avoidance_angle,
                     haptic_status=current_action,
-                    side_clear_mm=cfg.side_clear_mm,
                 )
                 try:
                     await asyncio.to_thread(_push_web_dashboard, cfg.server_url, web_payload)

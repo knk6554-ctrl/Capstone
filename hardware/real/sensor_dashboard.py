@@ -200,13 +200,12 @@ def make_payload(
 def _web_dashboard_payload(payload: dict[str, Any], bias_dps: float) -> dict[str, Any]:
     """make_payload()가 만든 이 파일 전용 모양을 web/app.js의 renderSensorDashboard()가
     그대로 그릴 수 있는 모양으로 재구성한다(hardware/real/main.py의 _web_dashboard_payload와
-    같은 목적 — 여기서는 이미 계산된 make_payload()의 counts/levels를 재사용한다).
+    같은 목적 — 여기서는 이미 계산된 make_payload()의 obstacle/stairs/avoidance 문구를 재사용한다).
     """
 
     def grid(flat: list) -> list[list]:
         return [flat[row * 8 : row * 8 + 8] for row in range(8)]
 
-    counts = payload["counts"]
     angle = payload["angle_deg"]
     direction = "LEFT" if angle < -0.5 else "RIGHT" if angle > 0.5 else "NONE"
     return {
@@ -217,11 +216,6 @@ def _web_dashboard_payload(payload: dict[str, Any], bias_dps: float) -> dict[str
             "gyroZOffsetDegPerSec": round(bias_dps, 2),
             "gyroZFinalDegPerSec": payload["rate_dps"],
         },
-        "statusSummary": [
-            {"level": "good", "label": "정상", "count": counts.get("normal", 0)},
-            {"level": "warning", "label": "경고", "count": counts.get("warning", 0)},
-            {"level": "critical", "label": "위험", "count": counts.get("danger", 0)},
-        ],
         "imu": {"direction": direction, "angleDeg": angle},
         "tof": {"front": grid(payload["front"]), "down": grid(payload["down"])},
         "decisions": [

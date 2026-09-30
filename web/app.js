@@ -1214,11 +1214,6 @@ const EMPTY_SENSOR_DASHBOARD_DATA = {
     gyroZOffsetDegPerSec: 0,
     gyroZFinalDegPerSec: 0,
   },
-  statusSummary: [
-    { level: "good", label: "정상", count: 0 },
-    { level: "warning", label: "경고", count: 0 },
-    { level: "critical", label: "위험", count: 0 },
-  ],
   imu: { direction: "NONE", angleDeg: 0 },
   tof: {
     front: Array.from({ length: 8 }, () => Array(8).fill(null)),
@@ -1265,7 +1260,6 @@ async function fetchSensorDashboardData() {
 function renderSensorDashboard(data) {
   const shape = data || EMPTY_SENSOR_DASHBOARD_DATA;
   renderDataStatCards(shape.stats);
-  renderStatusChips(shape.statusSummary);
   renderImuGauge(shape.imu);
   renderTofHeatmap(document.querySelector("#tof-front-table"), shape.tof.front);
   renderTofHeatmap(document.querySelector("#tof-down-table"), shape.tof.down);
@@ -1343,19 +1337,6 @@ function renderDataStatCards(stats) {
 
     card.replaceChildren(labelEl, valueRow);
   }
-}
-
-function renderStatusChips(summary) {
-  const container = document.querySelector("#status-chip-group");
-  if (!container) return;
-  container.replaceChildren(
-    ...summary.map(({ level, label, count }) => {
-      const chip = document.createElement("span");
-      chip.className = `status-chip status-chip--${level}`;
-      chip.textContent = `${label} (${count})`;
-      return chip;
-    }),
-  );
 }
 
 // 반원형(180도) IMU 회전각 게이지 — 중앙(0°)에서 좌/우로 진행 아크를 그린다.

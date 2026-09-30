@@ -1251,46 +1251,8 @@ button:disabled {
   margin-bottom: 0.6rem;
 }
 
-/* 센서 상태 요약 pill 칩 — 클릭 동작 없는 정보 표시 전용 */
-.status-chip-group {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.5rem;
-}
-
-.status-chip {
-  padding: 0.4rem 0.9rem;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  background: var(--field);
-  color: var(--ink-soft);
-  font-size: 0.8rem;
-  font-weight: 700;
-  font-family: var(--font-mono);
-  text-align: center;
-}
-
-.status-chip--good {
-  grid-column: 1 / -1;
-  border-color: var(--start-green);
-  background: rgba(47, 111, 94, 0.12);
-  color: var(--start-green);
-}
-
-.status-chip--warning {
-  border-color: var(--hazard-stairs);
-  background: var(--hazard-stairs-tint);
-  color: var(--hazard-stairs);
-}
-
-.status-chip--critical {
-  border-color: var(--hazard-crosswalk);
-  background: var(--hazard-crosswalk-tint);
-  color: var(--hazard-crosswalk);
-}
-
-/* IMU 회전각 반원형 게이지 카드 — 센서 상태 요약 칩 아래 남는 세로 공간을 채워서
-   옆(측정 회전각 등) 카드들과 바닥선이 맞도록 .data-status-column 안에서 늘어난다. */
+/* IMU 회전각 반원형 게이지 카드 — .data-status-column 안의 유일한 요소라 남는
+   세로 공간을 전부 채워서 옆(측정 회전각 등) 카드들과 바닥선이 맞도록 늘어난다. */
 .imu-gauge-card {
   flex: 1;
   display: flex;
