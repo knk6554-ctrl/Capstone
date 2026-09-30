@@ -1291,21 +1291,23 @@ function renderSensorDashboard(data) {
   renderTofHeatmap(document.querySelector("#tof-down-table"), data.tof.down);
 }
 
+// wide: 라벨이 길어서(특히 "측정 종료 시 Z축 각속도") 한 칸으로는 줄바꿈이 어색하게
+// 걸리던 카드 — 나머지 1칸짜리 카드보다 1.5배 넓은 칸을 차지하게 한다.
 const DATA_STAT_DEFS = [
   { key: "leftSideMm", label: "좌측 측면 거리", unit: "mm" },
   { key: "rightSideMm", label: "우측 측면 거리", unit: "mm" },
   { key: "rotationDeg", label: "측정 회전각", unit: "°" },
-  { key: "gyroZOffsetDegPerSec", label: "Z축 오프셋", unit: "°/s" },
-  { key: "gyroZFinalDegPerSec", label: "측정 종료 시 Z축 각속도", unit: "°/s" },
+  { key: "gyroZOffsetDegPerSec", label: "Z축 오프셋", unit: "°/s", wide: true },
+  { key: "gyroZFinalDegPerSec", label: "측정 종료 시 Z축 각속도", unit: "°/s", wide: true },
 ];
 
 function renderDataStatCards(stats) {
   const container = document.querySelector("#data-stat-grid");
   if (!container) return;
   container.replaceChildren(
-    ...DATA_STAT_DEFS.map(({ key, label, unit }) => {
+    ...DATA_STAT_DEFS.map(({ key, label, unit, wide }) => {
       const card = document.createElement("article");
-      card.className = "data-stat-card";
+      card.className = wide ? "data-stat-card data-stat-card--wide" : "data-stat-card";
 
       const labelEl = document.createElement("span");
       labelEl.className = "data-stat-card__label";

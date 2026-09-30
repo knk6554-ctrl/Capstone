@@ -12,7 +12,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2/dist/tabler-icons.min.css" />
-    <link rel="stylesheet" href="/static/styles.css?v=data-dashboard" />
+    <link rel="stylesheet" href="/static/styles.css?v=data-3col" />
   </head>
   <body>
     <a class="skip-link" href="#main-content">본문으로 바로가기</a>
@@ -328,25 +328,24 @@
             </div>
 
             <div class="heatmap-card">
-              <div>
-                <h3>전방 ToF 8×8 <span class="heatmap-card__unit">mm</span></h3>
-                <div class="heatmap-scroll">
-                  <table
-                    class="heatmap-table"
-                    id="tof-front-table"
-                    aria-label="전방 ToF 8x8 거리 히트맵"
-                  ></table>
-                </div>
+              <h3>전방 ToF 8×8 <span class="heatmap-card__unit">mm</span></h3>
+              <div class="heatmap-scroll">
+                <table
+                  class="heatmap-table"
+                  id="tof-front-table"
+                  aria-label="전방 ToF 8x8 거리 히트맵"
+                ></table>
               </div>
-              <div>
-                <h3>하향 ToF 8×8 <span class="heatmap-card__unit">mm</span></h3>
-                <div class="heatmap-scroll">
-                  <table
-                    class="heatmap-table"
-                    id="tof-down-table"
-                    aria-label="하향 ToF 8x8 거리 히트맵"
-                  ></table>
-                </div>
+            </div>
+
+            <div class="heatmap-card">
+              <h3>하향 ToF 8×8 <span class="heatmap-card__unit">mm</span></h3>
+              <div class="heatmap-scroll">
+                <table
+                  class="heatmap-table"
+                  id="tof-down-table"
+                  aria-label="하향 ToF 8x8 거리 히트맵"
+                ></table>
               </div>
             </div>
           </div>
@@ -359,6 +358,6 @@
       </div>
     </main>
 
-    <script src="/static/app.js?v=data-dashboard" defer></script>
+    <script src="/static/app.js?v=data-3col" defer></script>
   </body>
 </html>
