@@ -1228,11 +1228,13 @@ const EMPTY_SENSOR_DASHBOARD_DATA = {
 };
 
 // 장애물/계단·낙차/회피 결정/팔찌 진동 — 카드가 아니라 한 줄씩 길게 나열한다.
+// decisions가 없는 push(예: 이 필드를 아직 안 보내는 다른 라즈베리파이 스크립트)가
+// 와도 렌더링 전체가 멈추지 않도록, 없으면 빈 배열로 취급해 기존 줄을 그대로 둔다.
 function renderDataDecisions(decisions) {
   const container = document.querySelector("#data-decisions");
   if (!container) return;
   container.replaceChildren(
-    ...decisions.map(({ label, value }) => {
+    ...(decisions || []).map(({ label, value }) => {
       const row = document.createElement("div");
       row.className = "data-decision-row";
 
