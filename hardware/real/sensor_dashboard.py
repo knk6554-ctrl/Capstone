@@ -224,6 +224,12 @@ def _web_dashboard_payload(payload: dict[str, Any], bias_dps: float) -> dict[str
         ],
         "imu": {"direction": direction, "angleDeg": angle},
         "tof": {"front": grid(payload["front"]), "down": grid(payload["down"])},
+        "decisions": [
+            {"label": "장애물", "value": payload["obstacle"]},
+            {"label": "계단/낙차", "value": payload["stairs"]},
+            {"label": "회피 결정", "value": payload["avoidance"]},
+            {"label": "팔찌 진동", "value": payload.get("haptic_status", "연결 준비 중")},
+        ],
     }
 
 

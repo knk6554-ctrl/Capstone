@@ -19,6 +19,10 @@ def _sensor_payload(**overrides):
         "front": list(range(64)),
         "down": [700] * 64,
         "counts": {"normal": 4, "warning": 0, "danger": 0},
+        "obstacle": "장애물 없음",
+        "stairs": "계단 없음",
+        "avoidance": "직진 가능",
+        "haptic_status": "대기 · 위험 없음",
     }
     base.update(overrides)
     return base
@@ -28,7 +32,9 @@ class WebDashboardPayloadTests(unittest.TestCase):
     def test_matches_the_shape_web_app_js_expects(self):
         payload = sensor_dashboard._web_dashboard_payload(_sensor_payload(), bias_dps=0.42)
 
-        self.assertEqual(set(payload.keys()), {"stats", "statusSummary", "imu", "tof"})
+        self.assertEqual(
+            set(payload.keys()), {"stats", "statusSummary", "imu", "tof", "decisions"}
+        )
         self.assertEqual(payload["stats"]["leftSideMm"], 850)
         self.assertEqual(payload["stats"]["gyroZOffsetDegPerSec"], 0.42)
         self.assertEqual(len(payload["statusSummary"]), 3)
@@ -62,6 +68,39 @@ class WebDashboardPayloadTests(unittest.TestCase):
         )
 
         self.assertEqual(payload["imu"]["direction"], "RIGHT")
+
+
+class WebDashboardDecisionsTests(unittest.TestCase):
+    def test_decisions_has_four_labeled_rows_pulled_from_make_payload_fields(self):
+        payload = sensor_dashboard._web_dashboard_payload(
+            _sensor_payload(
+                obstacle="장애물 감지",
+                stairs="하행 계단 감지",
+                avoidance="좌측으로 피함",
+                haptic_status="하행 계단 진동 전송 완료",
+            ),
+            bias_dps=0.0,
+        )
+
+        by_label = {row["label"]: row["value"] for row in payload["decisions"]}
+        self.assertEqual(
+            by_label,
+            {
+                "장애물": "장애물 감지",
+                "계단/낙차": "하행 계단 감지",
+                "회피 결정": "좌측으로 피함",
+                "팔찌 진동": "하행 계단 진동 전송 완료",
+            },
+        )
+
+    def test_missing_haptic_status_falls_back_to_default_text(self):
+        sensor_payload = _sensor_payload()
+        del sensor_payload["haptic_status"]
+
+        payload = sensor_dashboard._web_dashboard_payload(sensor_payload, bias_dps=0.0)
+
+        by_label = {row["label"]: row["value"] for row in payload["decisions"]}
+        self.assertEqual(by_label["팔찌 진동"], "연결 준비 중")
 
 
 if __name__ == "__main__":

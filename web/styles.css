@@ -1175,78 +1175,6 @@ button:disabled {
   font-size: 0.78rem;
 }
 
-.sensor-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.75rem;
-  margin-bottom: 1.1rem;
-}
-
-.sensor-grid label {
-  display: flex;
-  flex-direction: column;
-  background: var(--field);
-  padding: 0.75rem 0.9rem;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--line);
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--ink-soft);
-}
-
-.sensor-grid input {
-  width: 100%;
-  margin-top: 0.4rem;
-  font-family: var(--font-mono);
-  font-size: 1rem;
-  font-weight: 700;
-  background: transparent;
-  border: none;
-  border-top: 1px solid var(--line);
-  border-radius: 0;
-  padding: 0.35rem 0 0;
-  min-height: unset;
-  color: var(--ink);
-  outline: none;
-}
-
-.sensor-grid input:focus {
-  box-shadow: none;
-  border-color: var(--ink);
-  background: transparent;
-}
-
-.sensor-status {
-  margin-top: 1.1rem;
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.6rem;
-}
-
-.sensor-chip {
-  padding: 0.75rem 0.9rem;
-  border-radius: var(--radius-sm);
-  background: var(--field);
-  border: 1px solid var(--line);
-  font-family: var(--font-mono);
-  font-size: 0.84rem;
-  color: var(--ink-soft);
-}
-
-.sensor-chip.warning {
-  border-color: var(--hazard-stairs);
-  background: var(--hazard-stairs-tint);
-  color: var(--hazard-stairs);
-  font-weight: 700;
-}
-
-.sensor-chip.critical {
-  border-color: var(--hazard-crosswalk);
-  background: var(--hazard-crosswalk-tint);
-  color: var(--hazard-crosswalk);
-  font-weight: 700;
-}
-
 /* ==========================================================================
    센서 데이터 대시보드 ("데이터" 탭) — /api/sensors/dashboard를 실시간으로 그린다
    ========================================================================== */
@@ -1469,6 +1397,40 @@ button:disabled {
   color: var(--muted);
 }
 
+/* 장애물/계단·낙차/회피 결정/팔찌 진동 — 카드형이 아니라 한 줄씩 길게 쌓는다 */
+.data-decisions {
+  margin-top: 1.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.data-decision-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1.1rem;
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+}
+
+.data-decision-row__label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.data-decision-row__value {
+  font-family: var(--font-mono);
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--ink);
+  text-align: right;
+}
+
 /* ==========================================================================
    Footer
    ========================================================================== */
@@ -1604,9 +1566,7 @@ button:disabled {
 
 @media (max-width: 480px) {
   .search-row,
-  .button-pair,
-  .sensor-grid,
-  .sensor-status {
+  .button-pair {
     grid-template-columns: 1fr;
   }
 

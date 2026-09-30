@@ -59,22 +59,10 @@ def _dashboard_loop(state: SharedState, stop: threading.Event) -> None:
         print("\033[2J\033[H" + render_terminal(state.get()), end="", flush=True)
 
 
-def _dashboard_payload(
-    *,
-    front,
-    down,
-    left_mm,
-    right_mm,
-    angle,
-    rate,
-    safety_events,
-    blocked,
-    avoidance_angle,
-    action,
-    simulated,
-    front_enabled,
-    web_dashboard_status="아직 전송 안 함",
-):
+def _obstacle_stairs_avoidance_labels(
+    *, safety_events, blocked: bool, avoidance_angle: float | None
+) -> tuple[str, str, str]:
+    """[장애물]/[계단·낙차]/[회피 결정] 표시 문구 — 터미널 대시보드와 웹 대시보드가 같은 문구를 쓴다."""
     kinds = {event.kind for event in safety_events}
     if EventKind.STAIR_UP in kinds:
         stairs = "상행 계단 감지"
@@ -94,6 +82,28 @@ def _dashboard_payload(
         avoidance = "우측으로 피함"
     else:
         avoidance = "직진 가능"
+    return obstacle, stairs, avoidance
+
+
+def _dashboard_payload(
+    *,
+    front,
+    down,
+    left_mm,
+    right_mm,
+    angle,
+    rate,
+    safety_events,
+    blocked,
+    avoidance_angle,
+    action,
+    simulated,
+    front_enabled,
+    web_dashboard_status="아직 전송 안 함",
+):
+    obstacle, stairs, avoidance = _obstacle_stairs_avoidance_labels(
+        safety_events=safety_events, blocked=blocked, avoidance_angle=avoidance_angle
+    )
     valid_front = [value for value in front if value is not None]
     valid_down = [value for value in down if value is not None]
     return {
@@ -147,6 +157,8 @@ def _web_dashboard_payload(
     bias_dps: float,
     safety_events,
     blocked: bool,
+    avoidance_angle: float | None,
+    haptic_status: str,
     side_clear_mm: int,
 ) -> dict:
     """web/app.js의 renderSensorDashboard()가 그대로 그릴 수 있는 모양으로 재구성한다
@@ -162,6 +174,9 @@ def _web_dashboard_payload(
         left_mm=left_mm,
         right_mm=right_mm,
         side_clear_mm=side_clear_mm,
+    )
+    obstacle, stairs, avoidance = _obstacle_stairs_avoidance_labels(
+        safety_events=safety_events, blocked=blocked, avoidance_angle=avoidance_angle
     )
     direction = "LEFT" if angle < -0.5 else "RIGHT" if angle > 0.5 else "NONE"
     return {
@@ -179,6 +194,12 @@ def _web_dashboard_payload(
         ],
         "imu": {"direction": direction, "angleDeg": round(angle, 1)},
         "tof": {"front": grid(front), "down": grid(down)},
+        "decisions": [
+            {"label": "장애물", "value": obstacle},
+            {"label": "계단/낙차", "value": stairs},
+            {"label": "회피 결정", "value": avoidance},
+            {"label": "팔찌 진동", "value": haptic_status},
+        ],
     }
 
 
@@ -347,6 +368,8 @@ async def run(args: argparse.Namespace) -> None:
                     bias_dps=getattr(imu, "bias_dps", 0.0),
                     safety_events=safety_events,
                     blocked=blocked,
+                    avoidance_angle=avoidance_angle,
+                    haptic_status=current_action,
                     side_clear_mm=cfg.side_clear_mm,
                 )
                 try:

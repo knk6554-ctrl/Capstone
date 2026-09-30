@@ -12,7 +12,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2/dist/tabler-icons.min.css" />
-    <link rel="stylesheet" href="/static/styles.css?v=blue-heatmap1" />
+    <link rel="stylesheet" href="/static/styles.css?v=decisions-rows1" />
   </head>
   <body>
     <a class="skip-link" href="#main-content">본문으로 바로가기</a>
@@ -92,10 +92,6 @@
         <button type="button" class="tab-button is-active" data-tab="kakao" title="경로 안내">
           <i class="ti ti-map-pin" aria-hidden="true"></i>
           <span class="tab-label">경로</span>
-        </button>
-        <button type="button" class="tab-button" data-tab="sensor" title="센서 및 시뮬레이터">
-          <i class="ti ti-activity" aria-hidden="true"></i>
-          <span class="tab-label">센서</span>
         </button>
         <button type="button" class="tab-button" data-tab="data" title="센서 데이터 대시보드">
           <i class="ti ti-chart-histogram" aria-hidden="true"></i>
@@ -273,26 +269,6 @@
           <ol id="directions" class="directions"></ol>
         </section>
 
-        <!-- 센서 · 진동 텔레메트리 패널 -->
-        <section class="tab-panel" id="tab-sensor" aria-labelledby="sensor-heading">
-          <div class="section-heading">
-            <div>
-              <h2 id="sensor-heading">ToF 장애물 감지 시뮬레이터</h2>
-              <p>4개 ToF 센서의 감지 거리(mm)를 전송하여 실시간 위험 반응을 시험합니다.</p>
-            </div>
-          </div>
-          <div class="sensor-grid">
-            <label>전방 왼쪽 (FL)<input id="front-left-mm" type="number" value="2000" min="0" step="50" /></label>
-            <label>전방 오른쪽 (FR)<input id="front-right-mm" type="number" value="2000" min="0" step="50" /></label>
-            <label>왼쪽 측면 (SL)<input id="left-side-mm" type="number" value="2000" min="0" step="50" /></label>
-            <label>오른쪽 측면 (SR)<input id="right-side-mm" type="number" value="2000" min="0" step="50" /></label>
-          </div>
-          <button id="send-tof" type="button" class="secondary" style="width: 100%;">
-            <i class="ti ti-send" aria-hidden="true"></i> 센서값 전송
-          </button>
-          <div id="sensor-status" class="sensor-status" aria-live="polite"></div>
-        </section>
-
         <!-- Haptic Command Log Panel -->
         <section class="haptic-panel" aria-labelledby="haptic-heading">
           <div class="section-heading">
@@ -357,6 +333,10 @@
             <div class="data-stat-card" id="stat-angle-offset"></div>
             <div class="data-stat-card" id="stat-angle-rate"></div>
           </div>
+
+          <!-- 장애물/계단·낙차/회피 결정/팔찌 진동 — 터미널 대시보드와 같은 판정 문구를
+               한 줄씩 길게 나열한다. renderDataDecisions()가 채운다. -->
+          <div class="data-decisions" id="data-decisions"></div>
         </section>
 
         <footer class="panel__footer">
@@ -366,6 +346,6 @@
       </div>
     </main>
 
-    <script src="/static/app.js?v=blue-heatmap1" defer></script>
+    <script src="/static/app.js?v=decisions-rows1" defer></script>
   </body>
 </html>

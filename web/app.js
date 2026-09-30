@@ -59,7 +59,6 @@ const elements = {
   gpsOffRoute: document.querySelector("#gps-offroute"),
   gpsCount: document.querySelector("#gps-count"),
   hapticLog: document.querySelector("#haptic-log"),
-  sensorStatus: document.querySelector("#sensor-status"),
   emergencyBanner: document.querySelector("#emergency-banner"),
   emergencyMessage: document.querySelector("#emergency-message"),
   emergencyTime: document.querySelector("#emergency-time"),
@@ -197,7 +196,6 @@ function bindEvents() {
   elements.createRoute.addEventListener("click", createRoute);
   elements.startNavigation.addEventListener("click", startNavigation);
   elements.stopNavigation.addEventListener("click", stopNavigation);
-  document.querySelector("#send-tof").addEventListener("click", sendTofReadings);
 
   elements.emergencyAck.addEventListener("click", acknowledgeEmergency);
   bindHelpHints();
@@ -1193,36 +1191,6 @@ function appendHapticCommands(commands) {
   });
 }
 
-async function sendTofReadings() {
-  const value = (id) => Number(document.querySelector(`#${id}`).value);
-  try {
-    const result = await api("/api/tof", {
-      method: "POST",
-      body: JSON.stringify({
-        gateway_id: "browser-simulator",
-        front_left_mm: value("front-left-mm"),
-        front_right_mm: value("front-right-mm"),
-        left_side_mm: value("left-side-mm"),
-        right_side_mm: value("right-side-mm"),
-      }),
-    });
-    renderSensorStatus(result.sensors);
-    appendHapticCommands(result.commands);
-  } catch (error) {
-    elements.sensorStatus.textContent = error.message;
-  }
-}
-
-function renderSensorStatus(sensors) {
-  elements.sensorStatus.replaceChildren();
-  Object.entries(sensors).forEach(([zone, sensor]) => {
-    const item = document.createElement("div");
-    item.className = `sensor-chip ${sensor.level.toLowerCase()}`;
-    item.textContent = `${zone}: ${sensor.distanceMm}mm · ${sensor.level}`;
-    elements.sensorStatus.appendChild(item);
-  });
-}
-
 // ---------------------------------------------------------------------------
 // 센서 데이터 대시보드 ("데이터" 탭)
 //
@@ -1256,7 +1224,36 @@ const EMPTY_SENSOR_DASHBOARD_DATA = {
     front: Array.from({ length: 8 }, () => Array(8).fill(null)),
     down: Array.from({ length: 8 }, () => Array(8).fill(null)),
   },
+  decisions: [
+    { label: "장애물", value: "-" },
+    { label: "계단/낙차", value: "-" },
+    { label: "회피 결정", value: "-" },
+    { label: "팔찌 진동", value: "-" },
+  ],
 };
+
+// 장애물/계단·낙차/회피 결정/팔찌 진동 — 카드가 아니라 한 줄씩 길게 나열한다.
+function renderDataDecisions(decisions) {
+  const container = document.querySelector("#data-decisions");
+  if (!container) return;
+  container.replaceChildren(
+    ...decisions.map(({ label, value }) => {
+      const row = document.createElement("div");
+      row.className = "data-decision-row";
+
+      const labelEl = document.createElement("span");
+      labelEl.className = "data-decision-row__label";
+      labelEl.textContent = label;
+
+      const valueEl = document.createElement("span");
+      valueEl.className = "data-decision-row__value";
+      valueEl.textContent = value;
+
+      row.append(labelEl, valueEl);
+      return row;
+    }),
+  );
+}
 
 async function fetchSensorDashboardData() {
   const data = await api("/api/sensors/dashboard");
@@ -1272,6 +1269,7 @@ function renderSensorDashboard(data) {
   renderImuGauge(shape.imu);
   renderTofHeatmap(document.querySelector("#tof-front-table"), shape.tof.front);
   renderTofHeatmap(document.querySelector("#tof-down-table"), shape.tof.down);
+  renderDataDecisions(shape.decisions);
 
   const caption = document.querySelector("#data-caption");
   if (!caption) return;
