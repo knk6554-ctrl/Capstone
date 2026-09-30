@@ -29,6 +29,10 @@
   --danger: #c1352b;
   --amber-deep: #b25b00;
 
+  /* ToF 히트맵 전용 — 가까울수록 진한 파랑, 멀수록 옅은 파랑 */
+  --tof-near: #1d4ed8;
+  --tof-far: #dbeafe;
+
   --radius-xs: 6px;
   --radius-sm: 8px;
   --radius-md: 14px;
@@ -69,6 +73,9 @@
 
     --danger: #e2564a;
     --amber-deep: #e8973a;
+
+    --tof-near: #60a5fa;
+    --tof-far: #1e3a5f;
 
     --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
     --shadow-lg: 0 -6px 28px rgba(0, 0, 0, 0.5);
@@ -1354,8 +1361,13 @@ button:disabled {
   color: var(--hazard-crosswalk);
 }
 
-/* IMU 회전각 반원형 게이지 카드 */
+/* IMU 회전각 반원형 게이지 카드 — 센서 상태 요약 칩 아래 남는 세로 공간을 채워서
+   옆(측정 회전각 등) 카드들과 바닥선이 맞도록 .data-status-column 안에서 늘어난다. */
 .imu-gauge-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   padding: 0.9rem 1rem 1.1rem;
   background: var(--field);
   border: 1px solid var(--line);

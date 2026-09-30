@@ -1449,10 +1449,32 @@ function lerpColor(hexA, hexB, t) {
 
 function tofDistanceColor(mm) {
   const t = Math.max(0, Math.min(1, mm / TOF_VALID_MAX_MM));
-  const near = readCssColorHex("--hazard-crosswalk");
-  const mid = readCssColorHex("--hazard-stairs");
-  const far = readCssColorHex("--start-green");
-  return t < 0.5 ? lerpColor(near, mid, t / 0.5) : lerpColor(mid, far, (t - 0.5) / 0.5);
+  const near = readCssColorHex("--tof-near");
+  const far = readCssColorHex("--tof-far");
+  return lerpColor(near, far, t);
+}
+
+// WCAG 상대 휘도로 셀 배경이 밝은지 어두운지 보고 글자색을 고른다 — near/far 색이
+// 라이트/다크 모드에서 서로 반대로 밝아지므로(예: 다크 모드는 가까울수록 밝음)
+// 어느 쪽이 어두운지 고정 가정하지 않고 매번 계산해야 항상 대비가 유지된다.
+function relativeLuminance({ r, g, b }) {
+  const channel = (c) => {
+    const v = c / 255;
+    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+}
+
+function tofCellTextColor(mm) {
+  const t = Math.max(0, Math.min(1, mm / TOF_VALID_MAX_MM));
+  const near = hexToRgb(readCssColorHex("--tof-near"));
+  const far = hexToRgb(readCssColorHex("--tof-far"));
+  const mixed = {
+    r: lerpChannel(near.r, far.r, t),
+    g: lerpChannel(near.g, far.g, t),
+    b: lerpChannel(near.b, far.b, t),
+  };
+  return relativeLuminance(mixed) > 0.45 ? "#132a3a" : "#ffffff";
 }
 
 function renderTofHeatmap(table, grid) {
@@ -1469,6 +1491,7 @@ function renderTofHeatmap(table, grid) {
             td.className = "heatmap-cell";
             td.textContent = String(mm);
             td.style.backgroundColor = tofDistanceColor(mm);
+            td.style.color = tofCellTextColor(mm);
           } else {
             td.className = "heatmap-cell heatmap-cell--invalid";
             td.textContent = "-";
