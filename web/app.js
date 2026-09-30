@@ -1226,69 +1226,70 @@ function renderSensorStatus(sensors) {
 // ---------------------------------------------------------------------------
 // 센서 데이터 대시보드 ("데이터" 탭)
 //
-// 지금은 실제 센서 연동이 없다 — renderSensorDashboard(data)는 순수 렌더 함수로,
-// 어디서 온 데이터든 그 모양(shape)만 맞으면 그린다. "데이터를 가져오는 부분"과
-// "화면에 그리는 부분"을 분리해뒀으니, 나중에 fetch로 바꿀 때 render 쪽은
-// 건드릴 필요가 없다.
+// 라즈베리파이(hardware/real/main.py)가 0.5초마다 /api/sensors/dashboard로
+// ToF/IMU 값을 push하면, 여기서는 그걸 1초마다 폴링해서 그린다.
+// renderSensorDashboard(data)는 순수 렌더 함수로, 데이터가 어디서 왔든 모양만
+// 맞으면 그린다 — "가져오는 부분"과 "그리는 부분"이 분리돼 있다.
 // ---------------------------------------------------------------------------
 
-// TODO: 실제 API 연동 시 이 부분을 fetch 결과로 교체
-// 예: const data = await api("/api/sensors/dashboard");
-const DUMMY_SENSOR_DASHBOARD_DATA = {
+const SENSOR_DASHBOARD_POLL_MS = 1000;
+// 이 시간(ms)보다 오래 전 값이면 라즈베리파이 연결이 끊긴 것으로 본다.
+const SENSOR_DASHBOARD_STALE_MS = 5000;
+
+// 아직 한 번도 못 받았거나 연결이 끊겼을 때 그리는 빈 상태 — 렌더 함수들이
+// null/undefined 없이 항상 이 모양을 받도록 보장한다.
+const EMPTY_SENSOR_DASHBOARD_DATA = {
   stats: {
-    leftSideMm: 850,
-    rightSideMm: 1180,
-    rotationDeg: 56,
-    gyroZOffsetDegPerSec: 0.42,
-    gyroZFinalDegPerSec: 3.1,
+    leftSideMm: null,
+    rightSideMm: null,
+    rotationDeg: 0,
+    gyroZOffsetDegPerSec: 0,
+    gyroZFinalDegPerSec: 0,
   },
   statusSummary: [
-    { level: "good", label: "정상", count: 2 },
-    { level: "warning", label: "경고", count: 1 },
-    { level: "critical", label: "위험", count: 1 },
+    { level: "good", label: "정상", count: 0 },
+    { level: "warning", label: "경고", count: 0 },
+    { level: "critical", label: "위험", count: 0 },
   ],
-  imu: {
-    direction: "RIGHT", // "LEFT" | "RIGHT"
-    angleDeg: 56,
-  },
+  imu: { direction: "NONE", angleDeg: 0 },
   tof: {
-    // 8행 x 8열, mm 단위. 유효 범위는 0~4000mm.
-    front: [
-      [1800, 1750, 1600, 1500, 1520, 1690, 1800, 1900],
-      [1700, 1600, 1400, 1200, 1250, 1550, 1700, 1850],
-      [1500, 1300, 950, 700, 750, 1050, 1450, 1650],
-      [1200, 900, 550, 320, 340, 620, 1100, 1400],
-      [1150, 850, 500, 280, 300, 580, 1050, 1380],
-      [1400, 1150, 800, 600, 650, 900, 1350, 1600],
-      [1650, 1450, 1200, 1050, 1080, 1300, 1600, 1800],
-      [1850, 1700, 1550, 1450, 1470, 1650, 1800, 2000],
-    ],
-    down: [
-      [2000, 2050, 2100, 2080, 2090, 2100, 2050, 2000],
-      // 4500mm은 유효 범위(0~4000mm) 밖 — "-"/회색 셀로 표시되는지 확인용 더미값.
-      [2100, 4500, 2200, 2150, 2160, 2200, 2150, 2100],
-      [2200, 2200, 2250, 2200, 2200, 2250, 2200, 2200],
-      [2300, 2250, 2300, 2280, 2280, 2300, 2250, 2300],
-      [2300, 2300, 2300, 2300, 2300, 2300, 2300, 2300],
-      [2250, 2280, 2300, 2300, 2300, 2300, 2280, 2250],
-      [2200, 2220, 2250, 2260, 2260, 2250, 2220, 2200],
-      [2100, 2150, 2180, 2200, 2200, 2180, 2150, 2100],
-    ],
+    front: Array.from({ length: 8 }, () => Array(8).fill(null)),
+    down: Array.from({ length: 8 }, () => Array(8).fill(null)),
   },
 };
 
-// TODO: 실제 API 연동 시 이 함수 본문을 fetch 호출로 교체하고 async로 바꾼다.
-function loadSensorDashboardData() {
-  return DUMMY_SENSOR_DASHBOARD_DATA;
+async function fetchSensorDashboardData() {
+  const data = await api("/api/sensors/dashboard");
+  if (!data.available) return null;
+  return data;
 }
 
 // data 하나만 받아서 대시보드 전체를 그리는 순수 렌더 함수 — 네트워크 호출 없음.
 function renderSensorDashboard(data) {
-  renderDataStatCards(data.stats);
-  renderStatusChips(data.statusSummary);
-  renderImuGauge(data.imu);
-  renderTofHeatmap(document.querySelector("#tof-front-table"), data.tof.front);
-  renderTofHeatmap(document.querySelector("#tof-down-table"), data.tof.down);
+  const shape = data || EMPTY_SENSOR_DASHBOARD_DATA;
+  renderDataStatCards(shape.stats);
+  renderStatusChips(shape.statusSummary);
+  renderImuGauge(shape.imu);
+  renderTofHeatmap(document.querySelector("#tof-front-table"), shape.tof.front);
+  renderTofHeatmap(document.querySelector("#tof-down-table"), shape.tof.down);
+
+  const caption = document.querySelector("#data-caption");
+  if (!caption) return;
+  if (!data) {
+    caption.textContent = "라즈베리파이 연결 대기 중 — ToF·IMU 값이 아직 없습니다.";
+  } else if (Date.now() - data.receivedAt * 1000 > SENSOR_DASHBOARD_STALE_MS) {
+    caption.textContent = "라즈베리파이 연결이 끊긴 것 같습니다 — 마지막으로 받은 값을 표시 중입니다.";
+  } else {
+    caption.textContent = "ToF·IMU 원시 측정값을 한 화면에서 확인합니다 (실시간).";
+  }
+}
+
+async function pollSensorDashboard() {
+  try {
+    renderSensorDashboard(await fetchSensorDashboardData());
+  } catch (error) {
+    // Polling failures shouldn't interrupt the rest of the page.
+  }
 }
 
 // wide: 라벨이 길어서(특히 "측정 종료 시 Z축 각속도") 한 칸으로는 줄바꿈이 어색하게
@@ -1531,5 +1532,7 @@ async function acknowledgeEmergency() {
 window.addEventListener("beforeunload", stopNavigation);
 initialize();
 
-// "데이터" 탭 대시보드는 지도/네트워크와 무관하게 항상 그릴 수 있으니 따로 초기화한다.
-renderSensorDashboard(loadSensorDashboardData());
+// "데이터" 탭 대시보드는 지도/경로 상태와 무관하게 따로 초기화하고 계속 폴링한다.
+renderSensorDashboard(null);
+pollSensorDashboard();
+setInterval(pollSensorDashboard, SENSOR_DASHBOARD_POLL_MS);

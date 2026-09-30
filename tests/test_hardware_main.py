@@ -56,6 +56,7 @@ class HardwareMainTests(unittest.IsolatedAsyncioTestCase):
             simulate_imu=True,
             terminal=False,
             obstacle_only=True,
+            no_web_dashboard=True,
         )
         with patch.object(hardware_main, "MapApi", FakeMapApi):
             await self.cancel_after_start(hardware_main.run(args))

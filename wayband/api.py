@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Annotated, Literal, cast
+from typing import Annotated, Any, Literal, cast
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
@@ -26,6 +27,7 @@ from .recording import (
     WaypointType,
 )
 from .service import RouteNotFoundError, WaybandService
+from .telemetry import DashboardSnapshotStore
 
 
 WEB_ROOT = Path(__file__).resolve().parents[1] / "web"
@@ -121,6 +123,7 @@ async def lifespan(app: FastAPI):
         app.state.recordings, settings
     )
     app.state.emergency = EmergencyCenter()
+    app.state.dashboard = DashboardSnapshotStore()
     yield
 
 
@@ -261,6 +264,29 @@ def pending_haptics(
         # (서버가 재시작되면 순번이 메모리에서 사라지고 1부터 다시 시작한다).
         "serverInstanceId": service.instance_id,
     }
+
+
+def _dashboard(request: Request) -> DashboardSnapshotStore:
+    return request.app.state.dashboard
+
+
+@app.post("/api/sensors/dashboard")
+def push_sensor_dashboard(request: Request, body: dict[str, Any]) -> dict[str, object]:
+    # 벨트(라즈베리파이)가 web/app.js의 renderSensorDashboard()가 그대로 그릴 수 있는
+    # 모양으로 이미 완성해서 보낸다 — 서버는 판정을 다시 하지 않고 중계만 한다.
+    # /api/tof처럼 엄격한 스키마를 두지 않는 이유도 같다(중계용 텔레메트리).
+    payload = dict(body)
+    payload["receivedAt"] = time.time()
+    _dashboard(request).set(payload)
+    return {"stored": True}
+
+
+@app.get("/api/sensors/dashboard")
+def get_sensor_dashboard(request: Request) -> dict[str, object]:
+    payload = _dashboard(request).get()
+    if payload is None:
+        return {"available": False}
+    return {"available": True, **payload}
 
 
 # ---------------------------------------------------------------------------

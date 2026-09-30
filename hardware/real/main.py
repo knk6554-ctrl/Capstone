@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import sys
 import threading
 import time
 from collections import deque
 from pathlib import Path
 from urllib.error import URLError
+from urllib.request import Request, urlopen
 
 HARDWARE_ROOT = Path(__file__).resolve().parents[1]
 if str(HARDWARE_ROOT) not in sys.path:
@@ -113,6 +115,83 @@ def _dashboard_payload(
     }
 
 
+def _web_dashboard_stat_levels(
+    *, blocked: bool, safety_events, left_mm, right_mm, side_clear_mm: int
+) -> list[str]:
+    """센서 상태 요약 4지표(전방/계단·낙차/좌측/우측) — sensor_dashboard.py의 levels 계산과 같은 판정."""
+    kinds = {event.kind for event in safety_events}
+    levels = ["good", "good", "good", "good"]
+    if blocked:
+        levels[0] = "critical"
+    if EventKind.DOWN_DANGER in kinds:
+        levels[1] = "critical"
+    elif EventKind.STAIR_UP in kinds or EventKind.STAIR_DOWN in kinds:
+        levels[1] = "warning"
+    if left_mm is not None and left_mm <= side_clear_mm:
+        levels[2] = "warning"
+    if right_mm is not None and right_mm <= side_clear_mm:
+        levels[3] = "warning"
+    return levels
+
+
+def _web_dashboard_payload(
+    *,
+    front,
+    down,
+    left_mm,
+    right_mm,
+    angle: float,
+    rate: float,
+    bias_dps: float,
+    safety_events,
+    blocked: bool,
+    side_clear_mm: int,
+) -> dict:
+    """web/app.js의 renderSensorDashboard()가 그대로 그릴 수 있는 모양으로 재구성한다
+    (web/app.js의 DUMMY_SENSOR_DASHBOARD_DATA와 정확히 같은 shape — render 함수는 그대로 둔다).
+    """
+
+    def grid(flat: list) -> list[list]:
+        return [flat[row * 8 : row * 8 + 8] for row in range(8)]
+
+    levels = _web_dashboard_stat_levels(
+        blocked=blocked,
+        safety_events=safety_events,
+        left_mm=left_mm,
+        right_mm=right_mm,
+        side_clear_mm=side_clear_mm,
+    )
+    direction = "LEFT" if angle < -0.5 else "RIGHT" if angle > 0.5 else "NONE"
+    return {
+        "stats": {
+            "leftSideMm": left_mm,
+            "rightSideMm": right_mm,
+            "rotationDeg": round(angle, 1),
+            "gyroZOffsetDegPerSec": round(bias_dps, 2),
+            "gyroZFinalDegPerSec": round(rate, 2),
+        },
+        "statusSummary": [
+            {"level": "good", "label": "정상", "count": levels.count("good")},
+            {"level": "warning", "label": "경고", "count": levels.count("warning")},
+            {"level": "critical", "label": "위험", "count": levels.count("critical")},
+        ],
+        "imu": {"direction": direction, "angleDeg": round(angle, 1)},
+        "tof": {"front": grid(front), "down": grid(down)},
+    }
+
+
+def _push_web_dashboard(server_url: str, payload: dict) -> None:
+    body = json.dumps(payload).encode("utf-8")
+    request = Request(
+        f"{server_url}/api/sensors/dashboard",
+        data=body,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urlopen(request, timeout=2):
+        pass
+
+
 async def run(args: argparse.Namespace) -> None:
     if args.map_only:
         await run_map_only(args)
@@ -141,6 +220,7 @@ async def run(args: argparse.Namespace) -> None:
     avoidance_angle: float | None = None
     avoidance_clear_count = 0
     last_poll = 0.0
+    last_dashboard_push = 0.0
     last_safety: dict[EventKind, float] = {}
     imu_bus = None
     dashboard_state = SharedState({"error": "센서 초기화 중입니다."})
@@ -247,6 +327,25 @@ async def run(args: argparse.Namespace) -> None:
                     simulated=args.simulate_sensors,
                     front_enabled=cfg.enable_front,
                 ))
+
+            if not getattr(args, "no_web_dashboard", False) and now - last_dashboard_push >= 0.5:
+                last_dashboard_push = now
+                web_payload = _web_dashboard_payload(
+                    front=front,
+                    down=down,
+                    left_mm=left_mm,
+                    right_mm=right_mm,
+                    angle=imu_angle,
+                    rate=imu_rate,
+                    bias_dps=getattr(imu, "bias_dps", 0.0),
+                    safety_events=safety_events,
+                    blocked=blocked,
+                    side_clear_mm=cfg.side_clear_mm,
+                )
+                try:
+                    await asyncio.to_thread(_push_web_dashboard, cfg.server_url, web_payload)
+                except (URLError, TimeoutError, OSError) as exc:
+                    print(f"웹 대시보드 전송 실패(계속 진행합니다): {exc}")
 
             # 낙차/계단이 활성인 동안에는 지도 회전이나 장애물 회피를 실행하지
             # 않는다. 쿨다운 중에도 위험 자체는 활성 상태이므로 사용자가 위험
@@ -442,6 +541,11 @@ if __name__ == "__main__":
         type=float,
         default=5.0,
         help="이보다 오래된(createdAt) 명령은 실행하지 않고 건너뜀",
+    )
+    parser.add_argument(
+        "--no-web-dashboard",
+        action="store_true",
+        help="ToF/IMU 값을 웹(데이터 탭)으로 0.5초마다 전송하지 않음(기본은 전송함)",
     )
     try:
         asyncio.run(run(parser.parse_args()))

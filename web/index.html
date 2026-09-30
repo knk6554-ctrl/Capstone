@@ -12,7 +12,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2/dist/tabler-icons.min.css" />
-    <link rel="stylesheet" href="/static/styles.css?v=recenter-reset1" />
+    <link rel="stylesheet" href="/static/styles.css?v=live-sensor-dashboard1" />
   </head>
   <body>
     <a class="skip-link" href="#main-content">본문으로 바로가기</a>
@@ -306,12 +306,12 @@
           </ul>
         </section>
 
-        <!-- 센서 데이터 대시보드 (현재는 더미 데이터 — renderSensorDashboard()가 그린다) -->
+        <!-- 센서 데이터 대시보드 — /api/sensors/dashboard를 1초마다 폴링해 실시간으로 그린다 -->
         <section class="tab-panel" id="tab-data" aria-labelledby="data-heading">
           <div class="section-heading">
             <div>
               <h2 id="data-heading">센서 데이터 대시보드</h2>
-              <p>ToF·IMU 원시 측정값을 한 화면에서 확인합니다.</p>
+              <p id="data-caption">ToF·IMU 원시 측정값을 한 화면에서 확인합니다.</p>
             </div>
           </div>
 
@@ -358,6 +358,6 @@
       </div>
     </main>
 
-    <script src="/static/app.js?v=recenter-reset1" defer></script>
+    <script src="/static/app.js?v=live-sensor-dashboard1" defer></script>
   </body>
 </html>
