@@ -55,6 +55,7 @@ def _dashboard_payload(
     avoidance_angle,
     action,
     simulated,
+    front_enabled,
 ):
     kinds = {event.kind for event in safety_events}
     if EventKind.STAIR_UP in kinds:
@@ -81,6 +82,7 @@ def _dashboard_payload(
         "timestamp": time.time(),
         "source": "모의 센서" if simulated else "실제 센서",
         "front": front,
+        "front_enabled": front_enabled,
         "down": down,
         "front_nearest_mm": min(valid_front) if valid_front else None,
         "down_median_mm": sorted(valid_down)[len(valid_down) // 2] if valid_down else None,
@@ -104,7 +106,7 @@ async def run(args: argparse.Namespace) -> None:
         server_url=args.server_url,
         baseline_down_mm=args.baseline_down_mm,
         imu_invert=args.invert_imu,
-        enable_front=not args.skip_front,
+        enable_front=getattr(args, "enable_front", False) and not args.skip_front,
     )
     rig = SimulatedRig(cfg) if args.simulate_sensors else TofRig(cfg)
     wrists = BleWristController(simulate=args.simulate_ble)
@@ -209,7 +211,7 @@ async def run(args: argparse.Namespace) -> None:
             front, down, left_mm, right_mm = snapshot
             safety_events = detector.evaluate(front, down)
             imu_angle, imu_rate = imu.update()
-            blocked = front_is_blocked(front, cfg.front_warning_mm)
+            blocked = cfg.enable_front and front_is_blocked(front, cfg.front_warning_mm)
 
             if args.terminal:
                 dashboard_state.set(_dashboard_payload(
@@ -224,6 +226,7 @@ async def run(args: argparse.Namespace) -> None:
                     avoidance_angle=avoidance_angle,
                     action=current_action,
                     simulated=args.simulate_sensors,
+                    front_enabled=cfg.enable_front,
                 ))
 
             # 낙차/계단이 활성인 동안에는 지도 회전이나 장애물 회피를 실행하지
@@ -393,7 +396,8 @@ if __name__ == "__main__":
     parser.add_argument("--simulate-imu", action="store_true")
     parser.add_argument("--map-only", action="store_true", help="센서 없이 지도 클릭 햅틱만 실행")
     parser.add_argument("--obstacle-only", action="store_true", help="지도 없이 ToF 장애물 감지와 회피만 실행")
-    parser.add_argument("--skip-front", action="store_true", help="전방 VL53L5CX(CH0) 없이 실행")
+    parser.add_argument("--skip-front", action="store_true", help="전방 VL53L5CX(CH1) 없이 실행(현재 기본값)")
+    parser.add_argument("--enable-front", action="store_true", help="교체한 전방 VL53L5CX(CH1)를 다시 사용")
     parser.add_argument("--terminal", action="store_true", help="ToF 8x8, IMU, 판정과 현재 동작을 터미널에 표시")
     try:
         asyncio.run(run(parser.parse_args()))

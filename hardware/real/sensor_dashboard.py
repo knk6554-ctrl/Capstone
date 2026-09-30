@@ -145,7 +145,7 @@ def make_payload(
     # A stair profile can also be close to the front sensor.  Safety events
     # take priority so the UI does not misleadingly call stairs an obstacle.
     stair_or_drop = bool(kinds & {EventKind.STAIR_UP, EventKind.STAIR_DOWN, EventKind.DOWN_DANGER})
-    blocked = front_is_blocked(front, cfg.front_warning_mm) and not stair_or_drop
+    blocked = cfg.enable_front and front_is_blocked(front, cfg.front_warning_mm) and not stair_or_drop
     avoid_angle = plan_avoidance_angle(
         front,
         left_mm,
@@ -173,6 +173,7 @@ def make_payload(
         "timestamp": time.time(),
         "source": source,
         "front": front,
+        "front_enabled": cfg.enable_front,
         "down": down,
         "front_nearest_mm": nearest(front),
         "down_median_mm": median(down),
@@ -195,7 +196,11 @@ def make_payload(
 
 
 def sensor_loop(args: argparse.Namespace, state: SharedState, stop: threading.Event) -> None:
-    cfg = Config(baseline_down_mm=args.baseline_down_mm, imu_invert=args.invert_imu)
+    cfg = Config(
+        baseline_down_mm=args.baseline_down_mm,
+        imu_invert=args.invert_imu,
+        enable_front=args.enable_front,
+    )
     detector = EnvironmentDetector(
         cfg.baseline_down_mm,
         obstacle_mm=cfg.front_warning_mm,
@@ -285,13 +290,13 @@ HTML = r'''<!doctype html>
 <body><main><div class="top"><div><h1>센서 데이터 대시보드</h1><p class="muted">ToF·IMU 센서값과 실시간 안전 판정을 확인합니다.</p></div><div id="live" class="live">연결 중</div></div>
 <section class="cards"><div class="card"><span>좌측 측면 거리</span><strong id="left">-</strong></div><div class="card"><span>우측 측면 거리</span><strong id="right">-</strong></div><div class="card"><span>측정 회전각</span><strong id="angle">-</strong></div><div class="card"><span>회전 각속도</span><strong id="rate">-</strong></div></section>
 <section class="decisions"><div id="obstacleCard" class="decision good"><span>전방 판정</span><strong id="obstacle">-</strong></div><div id="stairCard" class="decision good"><span>계단·낙차 판정</span><strong id="stairs">-</strong></div><div id="avoidCard" class="decision good"><span>회피 결정</span><strong id="avoidance">-</strong></div></section>
-<section class="content"><div class="panel"><h3>센서 상태 요약</h3><div class="counts"><b class="pill normal">정상 <i id="normal">0</i></b><b class="pill warning">경고 <i id="warning">0</i></b><b class="pill danger">위험 <i id="danger">0</i></b></div><div class="gauge"><strong id="gauge">0°</strong></div><p id="source" class="muted"></p></div><div class="panel"><h3>전방 ToF 8×8 <small>mm</small></h3><div id="front" class="grid"></div></div><div class="panel"><h3>하향 ToF 8×8 <small>mm</small></h3><div id="down" class="grid"></div></div></section>
+<section class="content"><div class="panel"><h3>센서 상태 요약</h3><div class="counts"><b class="pill normal">정상 <i id="normal">0</i></b><b class="pill warning">경고 <i id="warning">0</i></b><b class="pill danger">위험 <i id="danger">0</i></b></div><div class="gauge"><strong id="gauge">0°</strong></div><p id="source" class="muted"></p></div><div id="frontPanel" class="panel"><h3>전방 ToF 8×8 <small>mm</small></h3><div id="front" class="grid"></div></div><div class="panel"><h3>하향 ToF 8×8 <small>mm</small></h3><div id="down" class="grid"></div></div></section>
 <footer class="foot"><b>안전 및 접근성 안내</b><p>본 시스템은 프로토타입 연구용이며 흰지팡이 및 안내견 등 표준 보행 보조 수단을 보완합니다.</p></footer></main>
 <script>
 const $=id=>document.getElementById(id), value=(v,u)=>v==null?'측정 불가':`${v}<small class="unit"> ${u}</small>`;
 function grid(id,values){$(id).replaceChildren(...values.map(v=>{const e=document.createElement('div');e.className='cell '+(v==null?'none':v<=1000?'near':'');e.textContent=v??'--';return e}))}
 function tone(id,text){const e=$(id);e.className='decision '+(text.includes('감지')||text.includes('위험')||text.includes('정지')?'danger':text.includes('계단')&&!text.includes('없음')?'warning':'good')}
-async function update(){try{const r=await fetch('/api/sensors',{cache:'no-store'}),d=await r.json();if(d.error)throw Error(d.error);$('left').innerHTML=value(d.left_mm,'mm');$('right').innerHTML=value(d.right_mm,'mm');$('angle').innerHTML=value(d.angle_deg,'°');$('rate').innerHTML=value(d.rate_dps,'°/s');['obstacle','stairs','avoidance'].forEach(k=>$(k).textContent=d[k]);tone('obstacleCard',d.obstacle);tone('stairCard',d.stairs);tone('avoidCard',d.avoidance);Object.entries(d.counts).forEach(([k,v])=>$(k).textContent=v);$('gauge').textContent=`${d.angle_deg>0?'우회전 ':d.angle_deg<0?'좌회전 ':''}${Math.abs(d.angle_deg)}°`;$('source').textContent=`${d.source} · ${new Date(d.timestamp*1000).toLocaleTimeString()}`;grid('front',d.front);grid('down',d.down);$('live').textContent='● 실시간';}catch(e){$('live').textContent='연결 오류';$('live').className='live danger';}}
+async function update(){try{const r=await fetch('/api/sensors',{cache:'no-store'}),d=await r.json();if(d.error)throw Error(d.error);$('left').innerHTML=value(d.left_mm,'mm');$('right').innerHTML=value(d.right_mm,'mm');$('angle').innerHTML=value(d.angle_deg,'°');$('rate').innerHTML=value(d.rate_dps,'°/s');['obstacle','stairs','avoidance'].forEach(k=>$(k).textContent=d[k]);tone('obstacleCard',d.obstacle);tone('stairCard',d.stairs);tone('avoidCard',d.avoidance);Object.entries(d.counts).forEach(([k,v])=>$(k).textContent=v);$('gauge').textContent=`${d.angle_deg>0?'우회전 ':d.angle_deg<0?'좌회전 ':''}${Math.abs(d.angle_deg)}°`;$('source').textContent=`${d.source} · ${new Date(d.timestamp*1000).toLocaleTimeString()}`;$('frontPanel').hidden=!d.front_enabled;if(d.front_enabled)grid('front',d.front);grid('down',d.down);$('live').textContent='● 실시간';}catch(e){$('live').textContent='연결 오류';$('live').className='live danger';}}
 setInterval(update,250);update();</script></body></html>'''
 
 
@@ -335,7 +340,7 @@ def render_terminal(payload: dict[str, Any]) -> str:
             rows.append("  ".join("  --" if value is None else f"{value:4d}" for value in cells))
         return "\n".join(rows)
 
-    return "\n".join((
+    lines = [
         "WayBand 실시간 센서 모니터  (Ctrl+C 종료)",
         "=" * 72,
         f"입력: {payload['source']}  |  갱신: {time.strftime('%H:%M:%S')}",
@@ -350,13 +355,15 @@ def render_terminal(payload: dict[str, Any]) -> str:
         f"[회피 결정] {payload['avoidance']}"
         + (f" ({payload['avoidance_angle_deg']:+.1f}°)" if payload["avoidance_angle_deg"] not in (None, 0) else ""),
         f"[팔찌 진동] {payload.get('haptic_status', '연결 준비 중')}",
-        "",
-        "전방 ToF 8×8 (mm)",
-        grid(payload["front"]),
+    ]
+    if payload.get("front_enabled", True):
+        lines.extend(("", "전방 ToF 8×8 (mm)", grid(payload["front"])))
+    lines.extend((
         "",
         "하향 ToF 8×8 (mm)",
         grid(payload["down"]),
     ))
+    return "\n".join(lines)
 
 
 def run_terminal(state: SharedState, stop: threading.Event) -> None:
@@ -380,6 +387,7 @@ def main() -> None:
     parser.add_argument("--interval", type=float, default=0.1)
     parser.add_argument("--baseline-down-mm", type=int, default=700)
     parser.add_argument("--invert-imu", action="store_true")
+    parser.add_argument("--enable-front", action="store_true", help="교체한 전방 VL53L5CX(CH1)를 다시 사용")
     parser.add_argument("--terminal", action="store_true", help="웹 없이 현재 터미널에 표시")
     parser.add_argument("--simulate-ble", action="store_true", help="실제 팔찌 없이 진동 전송 시험")
     args = parser.parse_args()

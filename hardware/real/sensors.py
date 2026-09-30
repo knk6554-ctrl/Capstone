@@ -24,7 +24,11 @@ class TofRig:
         import qwiic_vl53l5cx
 
         self.bus = SMBus(self.cfg.i2c_bus)
-        channels = (self.cfg.front_channel, self.cfg.down_channel)
+        channels = (
+            (self.cfg.front_channel, self.cfg.down_channel)
+            if self.enable_front
+            else (self.cfg.down_channel,)
+        )
         for channel in channels:
             sensor = None
             last_error = None

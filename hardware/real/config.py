@@ -8,9 +8,11 @@ class Config:
     imu_address: int = 0x68
     imu_invert: bool = False
     tca_address: int = 0x70
-    front_channel: int = 0
-    enable_front: bool = True
-    down_channel: int = 1
+    # Current prototype wiring: CH0=down, CH1=front.  The CH1 front sensor is
+    # broken, so it stays disabled unless explicitly enabled at launch.
+    front_channel: int = 1
+    enable_front: bool = False
+    down_channel: int = 0
     left_channel: int = 2
     right_channel: int = 3
     baseline_down_mm: int = 700
