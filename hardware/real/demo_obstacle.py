@@ -25,7 +25,7 @@ async def rotate(runtime: DemoRuntime, target: float, label: str) -> bool:
     await runtime.haptic(
         f"ROTATE_{side.value}",
         PulsePattern(side, (round(runtime.cfg.rotation_timeout_seconds * 1000),), intensity=220),
-        0.0,
+        0.5,
     )
     started = time.monotonic()
     try:
