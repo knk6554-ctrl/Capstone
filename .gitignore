@@ -6,3 +6,5 @@ __pycache__/
 .mypy_cache/
 recorded_routes/
 .DS_Store
+belt/state.json
+belt/*.tmp

@@ -89,6 +89,10 @@ class RouteStep:
     location: Coordinate
     path: tuple[Coordinate, ...]
     maneuver: Maneuver
+    # 부호 있는 회전각(도). 양수=우회전, 음수=좌회전. 카카오 API에는 없는 값이라
+    # route_parser.turn_angle_degrees()가 좌표 방위각 차이로 계산해 채운다.
+    # 회전 단계가 아니거나 좌표가 부족하면 None.
+    turn_angle_degrees: float | None = None
 
     def to_public_dict(self) -> dict[str, Any]:
         return {
@@ -99,6 +103,11 @@ class RouteStep:
             "location": self.location.to_public_dict(),
             "path": [point.to_public_dict() for point in self.path],
             "maneuver": self.maneuver.value,
+            "turnAngleDegrees": (
+                round(self.turn_angle_degrees, 1)
+                if self.turn_angle_degrees is not None
+                else None
+            ),
         }
 
 

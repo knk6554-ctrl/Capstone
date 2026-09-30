@@ -24,7 +24,6 @@ class HapticTarget(str, Enum):
 class HapticPattern(str, Enum):
     PREPARE_TURN = "PREPARE_TURN"
     TURN_NOW = "TURN_NOW"
-    UTURN_NOW = "UTURN_NOW"
     ARRIVED = "ARRIVED"
     OFF_ROUTE = "OFF_ROUTE"
     OBSTACLE_WARNING = "OBSTACLE_WARNING"
@@ -43,6 +42,9 @@ class HapticCommand:
     pulse_count: int
     pulse_on_ms: int
     pulse_off_ms: int
+    # 부호 있는 회전각(도, 양수=우회전/음수=좌회전) — 회전 안내에만 채워진다.
+    # IMU가 있는 벨트가 "이 각도만큼 실제로 돌 때까지" 진동을 계속할 목표값으로 쓴다.
+    target_angle_degrees: float | None = None
     command_id: str = ""
     created_at: str = ""
 
@@ -72,6 +74,11 @@ class HapticCommand:
             "pulseCount": self.pulse_count,
             "pulseOnMs": self.pulse_on_ms,
             "pulseOffMs": self.pulse_off_ms,
+            "targetAngleDegrees": (
+                round(self.target_angle_degrees, 1)
+                if self.target_angle_degrees is not None
+                else None
+            ),
         }
 
 

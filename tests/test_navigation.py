@@ -26,6 +26,7 @@ class NavigationTests(unittest.TestCase):
                     location=turn,
                     path=(start.coordinate, turn, destination.coordinate),
                     maneuver=Maneuver.LEFT,
+                    turn_angle_degrees=-87.3,
                 ),
             ),
             path=(start.coordinate, turn, destination.coordinate),
@@ -47,8 +48,10 @@ class NavigationTests(unittest.TestCase):
 
         self.assertEqual(prepare["commands"][0]["target"], "LEFT_WRIST")
         self.assertEqual(prepare["commands"][0]["pattern"], "PREPARE_TURN")
+        self.assertEqual(prepare["commands"][0]["targetAngleDegrees"], -87.3)
         self.assertEqual(repeated["commands"], [])
         self.assertEqual(turn_now["commands"][0]["pattern"], "TURN_NOW")
+        self.assertEqual(turn_now["commands"][0]["targetAngleDegrees"], -87.3)
 
     def test_missed_turn_does_not_block_arrival_instruction(self):
         session = NavigationSession(
@@ -61,6 +64,46 @@ class NavigationTests(unittest.TestCase):
         result = session.update(Coordinate(127.0008, 37.0008), 3)
 
         self.assertEqual(result["nextInstruction"]["maneuver"], "ARRIVE")
+
+    def test_uturn_step_never_produces_a_haptic_command(self):
+        start = Place("출발", Coordinate(127.0, 37.0))
+        destination = Place("도착", Coordinate(127.001, 37.001))
+        turn = Coordinate(127.0005, 37.0005)
+        route = RoutePlan(
+            route_id="route-uturn",
+            start=start,
+            destination=destination,
+            total_distance_meters=200,
+            total_time_seconds=180,
+            landing_url="",
+            route_mode="ACCESSIBLE",
+            steps=(
+                RouteStep(
+                    index=0,
+                    guidance="유턴하세요",
+                    distance_meters=100,
+                    duration_seconds=90,
+                    location=turn,
+                    path=(start.coordinate, turn, destination.coordinate),
+                    maneuver=Maneuver.UTURN,
+                    turn_angle_degrees=178.0,
+                ),
+            ),
+            path=(start.coordinate, turn, destination.coordinate),
+        )
+        session = NavigationSession(
+            route,
+            prepare_distance_meters=25,
+            turn_now_distance_meters=8,
+            off_route_distance_meters=35,
+        )
+
+        near = session.update(Coordinate(127.0005, 37.0003), 3)
+        at_turn = session.update(Coordinate(127.0005, 37.0005), 3)
+
+        self.assertEqual(near["commands"], [])
+        self.assertEqual(at_turn["commands"], [])
+        self.assertEqual(at_turn["nextInstruction"]["maneuver"], "ARRIVE")
 
 
 if __name__ == "__main__":

@@ -1,7 +1,11 @@
 import unittest
 
 from wayband.models import Coordinate, Maneuver, Place
-from wayband.route_parser import classify_guidance, parse_walking_route
+from wayband.route_parser import (
+    classify_guidance,
+    parse_walking_route,
+    turn_angle_degrees,
+)
 
 
 class GuidanceTests(unittest.TestCase):
@@ -15,6 +19,29 @@ class GuidanceTests(unittest.TestCase):
         self.assertEqual(classify_guidance("계단을 이용하여 내려가세요"), Maneuver.STAIRS)
         self.assertEqual(classify_guidance("육교를 건너세요"), Maneuver.STAIRS)
         self.assertEqual(classify_guidance("횡단보도를 건너세요"), Maneuver.CROSSWALK)
+
+
+class TurnAngleDegreesTests(unittest.TestCase):
+    def test_right_angle_right_turn_is_about_positive_90(self):
+        # 북쪽으로 걷다가 동쪽으로 꺾는다 — 우회전.
+        previous = (Coordinate(127.0, 37.0), Coordinate(127.0, 37.001))
+        current = (Coordinate(127.0, 37.001), Coordinate(127.001, 37.001))
+
+        angle = turn_angle_degrees(previous, current)
+
+        self.assertAlmostEqual(angle, 90, delta=1)
+
+    def test_right_angle_left_turn_is_about_negative_90(self):
+        # 북쪽으로 걷다가 서쪽으로 꺾는다 — 좌회전.
+        previous = (Coordinate(127.0, 37.0), Coordinate(127.0, 37.001))
+        current = (Coordinate(127.0, 37.001), Coordinate(126.999, 37.001))
+
+        angle = turn_angle_degrees(previous, current)
+
+        self.assertAlmostEqual(angle, -90, delta=1)
+
+    def test_insufficient_points_returns_none(self):
+        self.assertIsNone(turn_angle_degrees((Coordinate(127.0, 37.0),), ()))
 
 
 class ParserTests(unittest.TestCase):
@@ -73,6 +100,10 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(route.total_distance_meters, 300)
         self.assertEqual(route.steps[1].maneuver, Maneuver.LEFT)
         self.assertEqual(len(route.path), 3)
+        # guidance 문구("왼쪽으로 이동")로 판정된 단계도 회전각은 좌표로 계산돼 채워진다.
+        self.assertIsNotNone(route.steps[1].turn_angle_degrees)
+        self.assertLess(route.steps[1].turn_angle_degrees, 0)
+        self.assertIsNone(route.steps[0].turn_angle_degrees)
 
 
 if __name__ == "__main__":

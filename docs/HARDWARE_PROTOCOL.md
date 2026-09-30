@@ -70,7 +70,8 @@ GET /api/haptics?after_sequence=42&limit=20
       "intensity": 0.9,
       "pulseCount": 3,
       "pulseOnMs": 220,
-      "pulseOffMs": 180
+      "pulseOffMs": 180,
+      "targetAngleDegrees": -87.3
     }
   ],
   "lastSequence": 43
@@ -78,6 +79,14 @@ GET /api/haptics?after_sequence=42&limit=20
 ```
 
 게이트웨이는 명령을 실행한 뒤 `lastSequence`를 비휘발성 저장소 또는 안전한 런타임 상태에 기억합니다. 같은 `commandId`를 이미 실행했다면 다시 울리지 않아야 합니다.
+
+### `targetAngleDegrees`와 `TURN_NOW`
+
+`PREPARE_TURN`/`TURN_NOW`에만 채워지는 부호 있는 회전각(도, 양수=우회전·음수=좌회전)입니다. 카카오 도보 경로 API는 숫자 각도를 주지 않아서, 경로 좌표의 방위각 차이로 서버가 직접 계산합니다(`wayband/route_parser.py`의 `turn_angle_degrees()`).
+
+`PREPARE_TURN`은 `pulseCount`대로 고정 재생하면 됩니다(아직 회전 지점에 도착하지 않았으므로 각도를 볼 필요가 없습니다). **`TURN_NOW`는 고정 횟수로 끝내지 말고, IMU로 실제 회전량을 적분해 `targetAngleDegrees`에 도달할 때까지(오차 허용 ±8도 권장) `pulseOnMs`/`pulseOffMs` 리듬으로 반복 진동해야 합니다.** 8초 안에 도달하지 못하면 그냥 진동을 멈추고 포기합니다 — 서버는 다음 GPS 기반 안내를 이미 독립적으로 계속 진행하므로 게이트웨이가 재시도하거나 별도 패턴으로 대체할 필요가 없습니다. 참고 구현: `belt/turn_tracker.py`, `belt/imu.py`.
+
+유턴은 전용 패턴이 없습니다 — 경로 안내 문구·목록에는 "유턴"으로 남지만 진동 명령 자체가 생성되지 않습니다.
 
 ## 경로 기록 파일(route_N.json)
 

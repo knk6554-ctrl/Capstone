@@ -124,7 +124,9 @@
 
 실제 팔찌(ESP32) 장치와 서버 사이를 잇는, 장치 종류에 안 묶이는 진동 명령 규격입니다.
 
-**명령 종류(패턴)**: `PREPARE_TURN`, `TURN_NOW`, `UTURN_NOW`, `ARRIVED`, `OFF_ROUTE`, `OBSTACLE_WARNING`, `OBSTACLE_CRITICAL`
+**명령 종류(패턴)**: `PREPARE_TURN`, `TURN_NOW`, `ARRIVED`, `OFF_ROUTE`, `OBSTACLE_WARNING`, `OBSTACLE_CRITICAL`
+
+**`TURN_NOW`의 `targetAngleDegrees`**: 카카오 경로 좌표의 방위각 차이로 계산한 부호 있는 목표 회전각(도, 양수=우회전/음수=좌회전, `wayband/route_parser.py`의 `turn_angle_degrees()`). 벨트(라즈베리파이, `belt/turn_tracker.py`)는 이 값에 실제로 도달할 때까지 IMU로 회전량을 적분하며 진동을 유지하고, 8초 안에 도달하지 못하면 포기하고 다음 안내로 넘어갑니다. 유턴은 전용 패턴 없이 진동하지 않습니다.
 
 **전달 방식**: 서버가 명령을 만들면 순번이 매겨진 채로 버퍼에 쌓이고, 장치(또는 화면의 "진동 명령 로그")가 `GET /api/haptics?after_sequence=N`으로 새 명령만 폴링해서 가져갑니다. 최대 500개까지 보관됩니다.
 

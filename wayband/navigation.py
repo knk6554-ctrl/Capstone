@@ -84,17 +84,21 @@ class NavigationEvent:
     location: Coordinate
     guidance: str
     step_index: int
+    # 부호 있는 회전각(도, 양수=우회전/음수=좌회전) — RouteStep.turn_angle_degrees를
+    # 그대로 옮긴 값. 회전이 아니거나(도착) 계산 불가면 None.
+    angle_degrees: float | None = None
 
 
-# 좌/우/유턴은 25m 준비 진동이 있지만, 횡단보도·계단은 근접 시 한 번만 울린다.
+# 좌/우회전은 25m 준비 진동이 있지만, 횡단보도·계단은 근접 시 한 번만 울린다.
 _NO_PREPARE_MANEUVERS = frozenset({Maneuver.CROSSWALK, Maneuver.STAIRS})
 
 
 def _events_for(route: RoutePlan) -> tuple[NavigationEvent, ...]:
+    # 유턴은 안내 문구·경로 목록에는 계속 "유턴"으로 표시되지만, 전용 진동 패턴 없이
+    # 벨트가 반응하지 않는다(haptic_maneuvers에서 제외).
     haptic_maneuvers = {
         Maneuver.LEFT,
         Maneuver.RIGHT,
-        Maneuver.UTURN,
         Maneuver.CROSSWALK,
         Maneuver.STAIRS,
     }
@@ -104,6 +108,7 @@ def _events_for(route: RoutePlan) -> tuple[NavigationEvent, ...]:
             location=step.location,
             guidance=step.guidance,
             step_index=step.index,
+            angle_degrees=step.turn_angle_degrees,
         )
         for step in route.steps
         if step.maneuver in haptic_maneuvers
@@ -162,12 +167,8 @@ def _turn_command(event: NavigationEvent, *, prepare: bool) -> HapticCommand:
             pulse_on_ms=250,
             pulse_off_ms=150,
         )
-    if event.maneuver is Maneuver.UTURN and not prepare:
-        pattern = HapticPattern.UTURN_NOW
-        pulse_count = 4
-    else:
-        pattern = HapticPattern.PREPARE_TURN if prepare else HapticPattern.TURN_NOW
-        pulse_count = 1 if prepare else 3
+    pattern = HapticPattern.PREPARE_TURN if prepare else HapticPattern.TURN_NOW
+    pulse_count = 1 if prepare else 3
     return HapticCommand(
         target=target,
         pattern=pattern,
@@ -177,6 +178,7 @@ def _turn_command(event: NavigationEvent, *, prepare: bool) -> HapticCommand:
         pulse_count=pulse_count,
         pulse_on_ms=220,
         pulse_off_ms=180,
+        target_angle_degrees=event.angle_degrees,
     )
 
 

@@ -17,6 +17,9 @@ from .models import (
 )
 
 
+_TURN_MANEUVERS = frozenset({Maneuver.LEFT, Maneuver.RIGHT, Maneuver.UTURN})
+
+
 def classify_guidance(guidance: str) -> Maneuver:
     """Classify Kakao's Korean free-text guidance into haptic categories."""
 
@@ -55,17 +58,33 @@ def _bearing(start: Coordinate, end: Coordinate) -> float:
     return (degrees(atan2(y, x)) + 360) % 360
 
 
+def turn_angle_degrees(
+    previous_path: tuple[Coordinate, ...],
+    current_path: tuple[Coordinate, ...],
+) -> float | None:
+    """이전 단계 진입 방위각과 현재 단계 진출 방위각의 차이(부호 있는 회전각).
+
+    양수는 우회전, 음수는 좌회전 방향이며 값의 범위는 -180~180도다. IMU 기반
+    회전 완료 판정(벨트 쪽)에서 목표 각도로 그대로 쓴다. 경로 좌표가 부족하면
+    계산할 수 없어 None을 돌려준다.
+    """
+
+    if len(previous_path) < 2 or len(current_path) < 2:
+        return None
+    incoming = _bearing(previous_path[-2], previous_path[-1])
+    outgoing = _bearing(current_path[0], current_path[1])
+    return (outgoing - incoming + 540) % 360 - 180
+
+
 def _infer_turn(
     previous_path: tuple[Coordinate, ...],
     current_path: tuple[Coordinate, ...],
 ) -> Maneuver:
     """Best-effort fallback when the guidance text has no direction keyword."""
 
-    if len(previous_path) < 2 or len(current_path) < 2:
+    delta = turn_angle_degrees(previous_path, current_path)
+    if delta is None:
         return Maneuver.OTHER
-    incoming = _bearing(previous_path[-2], previous_path[-1])
-    outgoing = _bearing(current_path[0], current_path[1])
-    delta = (outgoing - incoming + 540) % 360 - 180
     if 35 <= delta <= 145:
         return Maneuver.RIGHT
     if -145 <= delta <= -35:
@@ -140,6 +159,14 @@ def parse_walking_route(
         maneuver = step.maneuver
         if maneuver is Maneuver.OTHER and index > 0:
             maneuver = _infer_turn(parsed_steps[index - 1].path, step.path)
+        # 카카오 guidance 문구로 이미 LEFT/RIGHT/UTURN이 판정된 단계도 실제 회전각(도)은
+        # 문구에 없으므로, 좌표 방위각 차이로 항상 다시 계산해 둔다 — IMU 기반 회전
+        # 완료 판정(벨트)에서 목표 각도로 쓴다.
+        angle = (
+            turn_angle_degrees(parsed_steps[index - 1].path, step.path)
+            if index > 0 and maneuver in _TURN_MANEUVERS
+            else None
+        )
         normalized_steps.append(
             RouteStep(
                 index=step.index,
@@ -149,6 +176,7 @@ def parse_walking_route(
                 location=step.location,
                 path=step.path,
                 maneuver=maneuver,
+                turn_angle_degrees=angle,
             )
         )
 

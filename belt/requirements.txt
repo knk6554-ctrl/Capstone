@@ -1,0 +1,7 @@
+gpiozero>=2.0
+# Raspberry Pi 5(RP1 칩)는 기본 pin factory로 제어가 안 될 수 있다 — 필요하면 설치:
+# lgpio
+
+# 회전 각도 추적(turn_tracker.py)용 IMU. 실제로 쓸 IMU 모델이 정해지면 이 줄과
+# belt/imu.py의 RealImu 내부를 그 모델에 맞는 라이브러리로 바꾸세요.
+mpu6050-raspberrypi>=1.2
