@@ -2,3 +2,5 @@ smbus2>=0.5,<1
 sparkfun-qwiic-vl53l5cx>=2,<3
 sparkfun-qwiic-vl53l1x>=2,<3
 bleak>=1,<4
+# --wrist-output gpio일 때만 필요 (BLE만 쓰면 설치 안 해도 됨)
+gpiozero>=2.0

@@ -21,7 +21,7 @@ spec.loader.exec_module(hardware_main)
 class FakeMapApi:
     instances = []
 
-    def __init__(self, _server_url):
+    def __init__(self, _server_url, **_kwargs):
         self.poll_count = 0
         self.__class__.instances.append(self)
 

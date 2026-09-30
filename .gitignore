@@ -8,3 +8,5 @@ recorded_routes/
 .DS_Store
 belt/state.json
 belt/*.tmp
+hardware/real/state.json
+hardware/real/*.tmp

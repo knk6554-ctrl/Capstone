@@ -29,3 +29,6 @@ class Config:
     rotation_tolerance_degrees: float = 4.0
     rotation_timeout_seconds: float = 10.0
     loop_interval_seconds: float = 0.05
+    # --wrist-output gpio일 때만 쓰인다. BCM 핀 번호 — belt/config.py의 기본값과 동일.
+    left_wrist_pin: int = 17
+    right_wrist_pin: int = 27
