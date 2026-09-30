@@ -23,7 +23,7 @@ class MapApi:
             if command.get("source") != "NAVIGATION":
                 continue
             pattern = command.get("pattern")
-            if pattern in {"TURN_NOW", "UTURN_NOW"}:
+            if pattern == "TURN_NOW":
                 angle = command.get("targetAngleDegrees")
                 if angle is None:
                     target = command.get("target")

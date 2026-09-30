@@ -125,7 +125,9 @@ class RotationController:
         self.wrists = wrists
         self.imu = imu
         self.tolerance = tolerance_degrees
-        self.timeout = min(timeout_seconds, 10.0)
+        if timeout_seconds <= 0:
+            raise ValueError("회전 타임아웃은 0초보다 커야 합니다.")
+        self.timeout = timeout_seconds
         self.simulate = simulate
         self.telemetry_callback = telemetry_callback
 

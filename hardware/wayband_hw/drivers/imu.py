@@ -40,9 +40,14 @@ class Mpu6050Yaw:
         now = time.monotonic()
         dt = min(now - self._previous, 0.1)
         self._previous = now
-        rate = _signed_word(self.bus, self.address, GYRO_ZOUT_H) / GYRO_SCALE - self.bias_dps
-        # Public convention: negative=left, positive=right.
-        rate *= 1 if self.invert else -1
+        raw_rate = _signed_word(self.bus, self.address, GYRO_ZOUT_H) / GYRO_SCALE - self.bias_dps
+        # The standard mounting needs one fixed sensor-axis conversion so the
+        # public convention is negative=left and positive=right. ``invert``
+        # means the board is mounted in the opposite orientation and reverses
+        # that normalized sign.
+        rate = -raw_rate
+        if self.invert:
+            rate = -rate
         if abs(rate) >= 0.7:
             self.angle_deg += rate * dt
         return self.angle_deg, rate

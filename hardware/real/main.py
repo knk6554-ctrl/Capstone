@@ -195,7 +195,7 @@ async def run(args: argparse.Namespace) -> None:
     try:
         while True:
             now = time.monotonic()
-            if now - last_poll >= 0.4:
+            if not args.obstacle_only and now - last_poll >= 0.4:
                 last_poll = now
                 try:
                     pending_navigation.extend(await asyncio.to_thread(api.poll))
@@ -226,7 +226,9 @@ async def run(args: argparse.Namespace) -> None:
                     simulated=args.simulate_sensors,
                 ))
 
-            # 낙차/계단은 지도 및 회피 안내보다 항상 먼저 처리한다.
+            # 낙차/계단이 활성인 동안에는 지도 회전이나 장애물 회피를 실행하지
+            # 않는다. 쿨다운 중에도 위험 자체는 활성 상태이므로 사용자가 위험
+            # 구간을 벗어날 때까지 낮은 우선순위 동작을 의도적으로 보류한다.
             urgent = [event for event in safety_events if event.kind is not EventKind.FRONT_DANGER]
             if urgent:
                 event = max(urgent, key=lambda item: item.priority)
@@ -293,7 +295,7 @@ async def run(args: argparse.Namespace) -> None:
                 await asyncio.sleep(cfg.loop_interval_seconds)
                 continue
 
-            if pending_navigation:
+            if not args.obstacle_only and pending_navigation:
                 command = pending_navigation.popleft()
                 if command.kind is CommandKind.CROSSWALK:
                     await wrists.send(CROSSWALK_PATTERN)
@@ -330,11 +332,16 @@ async def run(args: argparse.Namespace) -> None:
 
             await asyncio.sleep(cfg.loop_interval_seconds)
     finally:
-        await wrists.stop()
-        await wrists.close()
-        rig.close()
-    if imu_bus is not None:
-            imu_bus.close()
+        dashboard_stop.set()
+        if dashboard_thread is not None:
+            dashboard_thread.join(timeout=1)
+        try:
+            await wrists.stop()
+        finally:
+            await wrists.close()
+            rig.close()
+            if imu_bus is not None:
+                imu_bus.close()
 
 
 async def run_map_only(args: argparse.Namespace) -> None:
@@ -348,7 +355,7 @@ async def run_map_only(args: argparse.Namespace) -> None:
     try:
         while True:
             now = time.monotonic()
-            if not args.obstacle_only and now - last_poll >= 0.4:
+            if now - last_poll >= 0.4:
                 last_poll = now
                 try:
                     pending_navigation.extend(await asyncio.to_thread(api.poll))
@@ -372,9 +379,6 @@ async def run_map_only(args: argparse.Namespace) -> None:
                     print("도착 진동 전송")
             await asyncio.sleep(0.05)
     finally:
-        dashboard_stop.set()
-        if dashboard_thread is not None:
-            dashboard_thread.join(timeout=1)
         await wrists.stop()
         await wrists.close()
 
