@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -20,6 +21,8 @@ class WristStatus:
     connected: bool = False
     battery_percent: int | None = None
     last_response: str = "-"
+    last_error: str = ""
+    vibrating_until: float = 0.0
 
 
 @dataclass(slots=True)
@@ -35,6 +38,7 @@ class BleWristController:
     clients: dict[Side, object] = field(default_factory=dict)
     statuses: dict[Side, WristStatus] = field(default_factory=lambda: {Side.LEFT: WristStatus(), Side.RIGHT: WristStatus()})
     _connect_lock: asyncio.Lock = field(default_factory=asyncio.Lock, init=False, repr=False)
+    _left_connect_lock: asyncio.Lock = field(default_factory=asyncio.Lock, init=False, repr=False)
     _left_serial: object | None = field(default=None, init=False, repr=False)
     _left_pattern_task: asyncio.Task | None = field(default=None, init=False, repr=False)
 
@@ -49,17 +53,25 @@ class BleWristController:
         raise RuntimeError("왼쪽 USB 팔찌를 찾지 못했습니다 (WAYBAND_LEFT_SERIAL 확인)")
 
     async def _connect_left_serial(self) -> None:
-        if self._left_serial is not None and getattr(self._left_serial, "is_open", False):
-            return
-        import serial
+        async with self._left_connect_lock:
+            if self._left_serial is not None and getattr(self._left_serial, "is_open", False):
+                return
+            import serial
 
-        port = self._find_left_serial_port()
-        self.statuses[Side.LEFT].last_response = "CONNECTING"
-        self._left_serial = await asyncio.to_thread(
-            serial.Serial, port, self.left_serial_baud, timeout=0.2, write_timeout=1
-        )
-        await asyncio.sleep(2.0)
-        self.statuses[Side.LEFT] = WristStatus(True, None, f"SERIAL:{port}")
+            port = self._find_left_serial_port()
+            self.statuses[Side.LEFT].last_response = "CONNECTING"
+            self._left_serial = await asyncio.to_thread(
+                serial.Serial, port, self.left_serial_baud, timeout=0.2, write_timeout=1
+            )
+            # CH340/ESP32 may reset when the serial port opens. A short wait is
+            # sufficient and keeps first-vibration latency much lower than 2 s.
+            await asyncio.sleep(0.8)
+            self.statuses[Side.LEFT] = WristStatus(True, None, f"SERIAL:{port}")
+
+    def _right_disconnected(self, _client: object) -> None:
+        status = self.statuses[Side.RIGHT]
+        status.connected = False
+        status.last_response = "DISCONNECTED"
 
     async def connect(self, side: Side) -> None:
         if side is Side.BOTH:
@@ -97,6 +109,11 @@ class BleWristController:
                             self.right_address,
                             timeout=self.scan_timeout,
                         )
+                        if device is None:
+                            device = await BleakScanner.find_device_by_name(
+                                DEVICE_NAMES[side],
+                                timeout=self.scan_timeout,
+                            )
                     else:
                         device = await BleakScanner.find_device_by_name(
                             DEVICE_NAMES[side],
@@ -105,7 +122,11 @@ class BleWristController:
                     if device is None:
                         target = self.right_address or DEVICE_NAMES[side]
                         raise RuntimeError(f"{target} 검색 실패")
-                    client = BleakClient(device, timeout=8)
+                    client = BleakClient(
+                        device,
+                        timeout=6,
+                        disconnected_callback=self._right_disconnected,
+                    )
                     await client.connect()
                     self.clients[side] = client
                     self.statuses[side].connected = True
@@ -117,6 +138,7 @@ class BleWristController:
                     self.statuses[side].last_response = (
                         f"RETRY:{attempt}/{self.connect_retries}:{exc}"
                     )
+                    self.statuses[side].last_error = str(exc)
                     if attempt < self.connect_retries:
                         await asyncio.sleep(0.5)
             raise RuntimeError(f"{DEVICE_NAMES[side]} 연결 실패: {last_error}")
@@ -140,12 +162,14 @@ class BleWristController:
             if isinstance(result, BaseException):
                 self.statuses[side].connected = False
                 self.statuses[side].last_response = f"ERROR:{result}"
+                self.statuses[side].last_error = str(result)
 
     async def _send_one(self, side: Side, pattern: PulsePattern) -> None:
         await self._ensure(side)
         payload = pattern.wire_command().encode("ascii") if pattern.pulses_ms else b"S"
         if self.simulate:
             self.statuses[side].last_response = f"ACK:{payload.decode()}"
+            self._mark_vibrating(side, pattern)
             return
         if side is Side.LEFT:
             await self._start_left_pattern(pattern)
@@ -156,6 +180,8 @@ class BleWristController:
                 await client.write_gatt_char(COMMAND_UUID, payload, response=True)
                 self.statuses[side].connected = True
                 self.statuses[side].last_response = "WRITE_ACK"
+                self.statuses[side].last_error = ""
+                self._mark_vibrating(side, pattern)
                 return
             except Exception:
                 client = self.clients.pop(side, None)
@@ -171,10 +197,39 @@ class BleWristController:
                 raise
 
     async def _write_left(self, command: str) -> None:
-        if self._left_serial is None:
-            raise RuntimeError("왼쪽 USB 팔찌가 연결되지 않았습니다")
-        await asyncio.to_thread(self._left_serial.write, f"{command}\n".encode("ascii"))
-        await asyncio.to_thread(self._left_serial.flush)
+        last_error: BaseException | None = None
+        for attempt in range(2):
+            try:
+                await self._connect_left_serial()
+                if self._left_serial is None:
+                    raise RuntimeError("왼쪽 USB 팔찌가 연결되지 않았습니다")
+                await asyncio.to_thread(self._left_serial.write, f"{command}\n".encode("ascii"))
+                await asyncio.to_thread(self._left_serial.flush)
+                self.statuses[Side.LEFT].connected = True
+                self.statuses[Side.LEFT].last_error = ""
+                return
+            except Exception as exc:
+                last_error = exc
+                serial_port, self._left_serial = self._left_serial, None
+                if serial_port is not None:
+                    try:
+                        await asyncio.to_thread(serial_port.close)
+                    except Exception:
+                        pass
+                self.statuses[Side.LEFT].connected = False
+                self.statuses[Side.LEFT].last_error = str(exc)
+                if attempt == 0:
+                    await asyncio.sleep(0.15)
+        raise RuntimeError(f"왼쪽 USB 팔찌 쓰기 실패: {last_error}")
+
+    @staticmethod
+    def _duration_seconds(pattern: PulsePattern) -> float:
+        return (sum(pattern.pulses_ms) + sum(pattern.gaps_ms)) / 1000.0
+
+    def _mark_vibrating(self, side: Side, pattern: PulsePattern) -> None:
+        self.statuses[side].vibrating_until = (
+            time.monotonic() + self._duration_seconds(pattern) if pattern.pulses_ms else 0.0
+        )
 
     async def _play_left_pattern(self, pattern: PulsePattern) -> None:
         try:
@@ -188,6 +243,17 @@ class BleWristController:
             await self._write_left("X")
             raise
 
+    def _left_pattern_done(self, task: asyncio.Task) -> None:
+        if task.cancelled():
+            return
+        error = task.exception()
+        if error is not None:
+            status = self.statuses[Side.LEFT]
+            status.connected = False
+            status.last_response = f"ERROR:{error}"
+            status.last_error = str(error)
+            status.vibrating_until = 0.0
+
     async def _start_left_pattern(self, pattern: PulsePattern) -> None:
         if self._left_pattern_task is not None and not self._left_pattern_task.done():
             self._left_pattern_task.cancel()
@@ -195,9 +261,18 @@ class BleWristController:
         if not pattern.pulses_ms:
             await self._write_left("X")
             self.statuses[Side.LEFT].last_response = "SERIAL_STOP"
+            self.statuses[Side.LEFT].vibrating_until = 0.0
             return
         self._left_pattern_task = asyncio.create_task(self._play_left_pattern(pattern))
+        self._left_pattern_task.add_done_callback(self._left_pattern_done)
         self.statuses[Side.LEFT].last_response = "SERIAL_PLAYING"
+        self._mark_vibrating(Side.LEFT, pattern)
+
+    async def maintain_connections(self, retry_seconds: float = 2.0) -> None:
+        """Keep both transports warm so a haptic command never has to scan first."""
+        while True:
+            await self.connect(Side.BOTH)
+            await asyncio.sleep(retry_seconds)
 
     async def stop(self) -> None:
         if self.simulate:
@@ -223,6 +298,8 @@ class BleWristController:
                 self.statuses[side].connected = False
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
+        for status in self.statuses.values():
+            status.vibrating_until = 0.0
 
     async def close(self) -> None:
         for client in tuple(self.clients.values()):
@@ -243,7 +320,9 @@ class BleWristController:
         parts = []
         for side, label in ((Side.LEFT, "L"), (Side.RIGHT, "R")):
             status = self.statuses[side]
-            if status.connected:
+            if status.vibrating_until > time.monotonic():
+                value = "vibrating"
+            elif status.connected:
                 value = "connected"
             elif status.last_response == "CONNECTING" or status.last_response.startswith("RETRY:"):
                 value = "connecting"
@@ -252,5 +331,15 @@ class BleWristController:
             else:
                 value = "waiting"
             parts.append(f"{label}:{value}")
+        return " / ".join(parts)
+
+    def detail_text(self) -> str:
+        parts = []
+        for side, label in ((Side.LEFT, "L"), (Side.RIGHT, "R")):
+            status = self.statuses[side]
+            detail = status.last_response
+            if status.last_error:
+                detail += f" · {status.last_error}"
+            parts.append(f"{label}:{detail}")
         return " / ".join(parts)
 

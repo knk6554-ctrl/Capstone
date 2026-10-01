@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated, Any, Literal, cast
 
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -264,6 +265,43 @@ def pending_haptics(
         # (서버가 재시작되면 순번이 메모리에서 사라지고 1부터 다시 시작한다).
         "serverInstanceId": service.instance_id,
     }
+
+
+@app.websocket("/api/haptics/ws")
+async def haptic_stream(websocket: WebSocket) -> None:
+    """Push haptic commands immediately; clients reconnect with a sequence cursor."""
+    await websocket.accept()
+    service: WaybandService = websocket.scope["app"].state.service
+    try:
+        sequence = max(0, int(websocket.query_params.get("after_sequence", "0")))
+    except ValueError:
+        sequence = 0
+    await websocket.send_json(
+        {
+            "commands": [],
+            "lastSequence": sequence,
+            "serverInstanceId": service.instance_id,
+        }
+    )
+    try:
+        while True:
+            items = await asyncio.to_thread(
+                service.commands.wait_after,
+                sequence,
+                100,
+                20.0,
+            )
+            if items:
+                sequence = items[-1].sequence
+            await websocket.send_json(
+                {
+                    "commands": [item.to_public_dict() for item in items],
+                    "lastSequence": sequence,
+                    "serverInstanceId": service.instance_id,
+                }
+            )
+    except (WebSocketDisconnect, RuntimeError):
+        return
 
 
 def _dashboard(request: Request) -> DashboardSnapshotStore:

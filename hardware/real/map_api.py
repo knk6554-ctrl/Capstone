@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlencode
+from urllib.parse import urlsplit, urlunsplit
 from urllib.request import urlopen
 
 from control import CommandKind, NavigationCommand
@@ -64,6 +66,68 @@ class MapApi:
         with urlopen(f"{self.server_url}/api/haptics?{query}", timeout=1) as response:
             return json.loads(response.read().decode("utf-8"))
 
+    def _websocket_url(self) -> str:
+        parsed = urlsplit(self.server_url)
+        scheme = "wss" if parsed.scheme == "https" else "ws"
+        query = urlencode({"after_sequence": self.sequence})
+        return urlunsplit((scheme, parsed.netloc, "/api/haptics/ws", query, ""))
+
+    def _consume(self, payload: dict) -> tuple[list[NavigationCommand], bool]:
+        new_instance_id = payload.get("serverInstanceId")
+        restarted = (
+            self.server_instance_id is not None
+            and new_instance_id is not None
+            and new_instance_id != self.server_instance_id
+        )
+        if restarted:
+            self.sequence = 0
+            self.server_instance_id = new_instance_id
+            _save_state(self.state_path, self.sequence, self.server_instance_id)
+            return [], True
+        if new_instance_id is not None and new_instance_id != self.server_instance_id:
+            self.server_instance_id = new_instance_id
+            _save_state(self.state_path, self.sequence, self.server_instance_id)
+
+        result: list[NavigationCommand] = []
+        priority = {"STAIRS": 0, "CROSSWALK": 1, "TURN_NOW": 2, "ARRIVED": 3}
+        commands = sorted(
+            payload.get("commands", []),
+            key=lambda item: (priority.get(item.get("pattern"), 9), int(item["sequence"])),
+        )
+        for command in commands:
+            self.sequence = max(self.sequence, int(command["sequence"]))
+            _save_state(self.state_path, self.sequence, self.server_instance_id)
+            if command.get("source") != "NAVIGATION" or _is_stale(command, self.max_age_seconds):
+                continue
+            created_at = command.get("createdAt", "")
+            latency_ms = None
+            try:
+                created = datetime.fromisoformat(created_at)
+                if created.tzinfo is None:
+                    created = created.replace(tzinfo=timezone.utc)
+                latency_ms = max(0, round((datetime.now(timezone.utc) - created).total_seconds() * 1000))
+            except (TypeError, ValueError):
+                pass
+            common = {
+                "message": command.get("message", ""),
+                "sequence": int(command["sequence"]),
+                "created_at": created_at,
+                "latency_ms": latency_ms,
+            }
+            pattern = command.get("pattern")
+            if pattern == "TURN_NOW":
+                angle = command.get("targetAngleDegrees")
+                if angle is None:
+                    angle = -90.0 if command.get("target") == "LEFT_WRIST" else 90.0
+                result.append(NavigationCommand(CommandKind.TURN, float(angle), **common))
+            elif pattern == "CROSSWALK":
+                result.append(NavigationCommand(CommandKind.CROSSWALK, **common))
+            elif pattern == "STAIRS":
+                result.append(NavigationCommand(CommandKind.STAIRS, **common))
+            elif pattern == "ARRIVED":
+                result.append(NavigationCommand(CommandKind.ARRIVED, **common))
+        return result, False
+
     def poll(self) -> list[NavigationCommand]:
         payload = self._request(self.sequence)
 
@@ -87,28 +151,45 @@ class MapApi:
             self.server_instance_id = new_instance_id
             _save_state(self.state_path, self.sequence, self.server_instance_id)
 
-        result: list[NavigationCommand] = []
-        for command in payload.get("commands", []):
-            self.sequence = max(self.sequence, int(command["sequence"]))
-            _save_state(self.state_path, self.sequence, self.server_instance_id)
-            if command.get("source") != "NAVIGATION":
-                continue
-            # 폴링이 한동안 끊겼다 복구된 경우, 이미 지난 회전·횡단보도 안내를
-            # 뒤늦게 실행하지 않는다 (순번은 위에서 이미 전진시켰으므로 다시
-            # 요청되지도 않는다).
-            if _is_stale(command, self.max_age_seconds):
-                continue
-            pattern = command.get("pattern")
-            if pattern == "TURN_NOW":
-                angle = command.get("targetAngleDegrees")
-                if angle is None:
-                    target = command.get("target")
-                    angle = -90.0 if target == "LEFT_WRIST" else 90.0
-                result.append(NavigationCommand(CommandKind.TURN, float(angle), command.get("message", "")))
-            elif pattern == "CROSSWALK":
-                result.append(NavigationCommand(CommandKind.CROSSWALK, message=command.get("message", "")))
-            elif pattern == "STAIRS":
-                result.append(NavigationCommand(CommandKind.STAIRS, message=command.get("message", "")))
-            elif pattern == "ARRIVED":
-                result.append(NavigationCommand(CommandKind.ARRIVED, message=command.get("message", "")))
+        result, _restarted = self._consume(payload)
         return result
+
+    async def stream(self):
+        """Yield command batches over WebSocket, falling back to HTTP polling."""
+        try:
+            import websockets
+        except ImportError:
+            websockets = None
+
+        while True:
+            if websockets is not None:
+                try:
+                    async with websockets.connect(
+                        self._websocket_url(),
+                        open_timeout=3,
+                        ping_interval=15,
+                        ping_timeout=10,
+                    ) as socket:
+                        async for raw in socket:
+                            commands, restarted = self._consume(json.loads(raw))
+                            if restarted:
+                                break
+                            if commands:
+                                yield commands
+                        continue
+                except asyncio.CancelledError:
+                    raise
+                except Exception as exc:
+                    print(f"WebSocket 명령 연결 실패 · HTTP 폴링 사용: {exc}")
+            try:
+                commands = await asyncio.to_thread(self.poll)
+                if commands:
+                    yield commands
+            except Exception:
+                pass
+            await asyncio.sleep(0.25)
+
+    async def pump(self, queue: asyncio.Queue[NavigationCommand]) -> None:
+        async for commands in self.stream():
+            for command in commands:
+                await queue.put(command)

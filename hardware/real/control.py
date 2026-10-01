@@ -29,6 +29,9 @@ class NavigationCommand:
     kind: CommandKind
     angle_degrees: float | None = None
     message: str = ""
+    sequence: int = 0
+    created_at: str = ""
+    latency_ms: int | None = None
 
 
 CROSSWALK_PATTERN = PulsePattern(Side.BOTH, (500, 500), (300,), 190)

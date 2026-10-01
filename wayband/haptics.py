@@ -6,7 +6,7 @@ from collections import deque
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
-from threading import Lock
+from threading import Condition
 from typing import Any
 from uuid import uuid4
 
@@ -97,16 +97,18 @@ class CommandBuffer:
     def __init__(self, max_commands: int = 500) -> None:
         self._commands: deque[QueuedCommand] = deque(maxlen=max_commands)
         self._next_sequence = 1
-        self._lock = Lock()
+        self._condition = Condition()
 
     def publish(self, commands: list[HapticCommand]) -> list[QueuedCommand]:
         queued: list[QueuedCommand] = []
-        with self._lock:
+        with self._condition:
             for command in commands:
                 item = QueuedCommand(self._next_sequence, command)
                 self._next_sequence += 1
                 self._commands.append(item)
                 queued.append(item)
+            if queued:
+                self._condition.notify_all()
         return queued
 
     def after(self, sequence: int, limit: int = 100) -> list[QueuedCommand]:
@@ -114,7 +116,25 @@ class CommandBuffer:
             raise ValueError("sequence는 0 이상이어야 합니다.")
         if not 1 <= limit <= 100:
             raise ValueError("limit은 1~100 범위여야 합니다.")
-        with self._lock:
+        with self._condition:
             return [item for item in self._commands if item.sequence > sequence][
                 :limit
             ]
+
+    def wait_after(
+        self,
+        sequence: int,
+        limit: int = 100,
+        timeout: float = 20.0,
+    ) -> list[QueuedCommand]:
+        """Wait for commands newer than sequence without busy polling."""
+        if sequence < 0:
+            raise ValueError("sequence는 0 이상이어야 합니다.")
+        if not 1 <= limit <= 100:
+            raise ValueError("limit은 1~100 범위여야 합니다.")
+        with self._condition:
+            items = [item for item in self._commands if item.sequence > sequence][:limit]
+            if items:
+                return items
+            self._condition.wait(timeout=max(0.0, timeout))
+            return [item for item in self._commands if item.sequence > sequence][:limit]

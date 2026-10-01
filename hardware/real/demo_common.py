@@ -150,6 +150,11 @@ class DemoRuntime:
         self.state = SharedState({"error": "센서 초기화 중입니다."})
         self.last_push = 0.0
         self.web_push_task: asyncio.Task | None = None
+        self.wrist_maintainer_task: asyncio.Task | None = None
+        self.haptic_worker_task: asyncio.Task | None = None
+        self.haptic_queue: asyncio.PriorityQueue = asyncio.PriorityQueue()
+        self.haptic_sequence = 0
+        self.last_haptic_latency = "아직 명령 없음"
         self.web_status = "아직 전송 안 함"
         self.last_haptic: dict[str, float] = {}
         self.running = True
@@ -164,7 +169,11 @@ class DemoRuntime:
         self.sensor_recovery_status = "재연결 대기 없음"
 
     async def start(self) -> None:
-        self.rig.start()
+        # Connection attempts continue in the background. Sensor startup and
+        # terminal display are no longer held up by a missing BLE wrist.
+        self.wrist_maintainer_task = asyncio.create_task(self.wrists.maintain_connections())
+        self.haptic_worker_task = asyncio.create_task(self._haptic_worker())
+        await asyncio.to_thread(self.rig.start)
         if not self.args.simulate_sensors:
             await self._calibrate_down()
             from smbus2 import SMBus
@@ -173,8 +182,7 @@ class DemoRuntime:
             self.imu = Mpu6050Yaw(self.bus, self.cfg.imu_address, self.cfg.imu_invert)
             print("IMU 보정 중입니다. 장치를 움직이지 마세요.")
             await asyncio.to_thread(self.imu.initialize)
-        print("팔찌 선연결 중입니다.")
-        await self.wrists.connect(Side.BOTH)
+        print("팔찌 연결은 백그라운드에서 자동 재시도합니다.")
 
     async def _push_web(self, payload: dict[str, Any]) -> None:
         try:
@@ -246,6 +254,13 @@ class DemoRuntime:
 
     async def close(self) -> None:
         self.running = False
+        for task in (self.wrist_maintainer_task, self.haptic_worker_task):
+            if task is not None and not task.done():
+                task.cancel()
+        await asyncio.gather(
+            *(task for task in (self.wrist_maintainer_task, self.haptic_worker_task) if task is not None),
+            return_exceptions=True,
+        )
         if self.web_push_task is not None and not self.web_push_task.done():
             self.web_push_task.cancel()
             await asyncio.gather(self.web_push_task, return_exceptions=True)
@@ -261,13 +276,65 @@ class DemoRuntime:
         if self.imu is not None:
             self.imu.reset()
 
-    async def haptic(self, key: str, pattern: PulsePattern, cooldown: float = 1.0) -> bool:
+    @staticmethod
+    def _haptic_priority(key: str) -> int:
+        upper = key.upper()
+        if any(word in upper for word in ("STOP", "DANGER", "OBSTACLE", "STAIR", "ERROR")):
+            return 0
+        if "CROSSWALK" in upper:
+            return 1
+        if any(word in upper for word in ("TURN", "LEFT", "RIGHT", "GPS")):
+            return 2
+        return 3
+
+    async def _haptic_worker(self) -> None:
+        while True:
+            _priority, _sequence, key, pattern, queued_at, source_latency_ms, future = (
+                await self.haptic_queue.get()
+            )
+            try:
+                await self.wrists.send(pattern)
+                dispatch_ms = round((time.monotonic() - queued_at) * 1000)
+                total_ms = dispatch_ms + (source_latency_ms or 0)
+                self.last_haptic_latency = (
+                    f"{key}: 전달 {dispatch_ms}ms"
+                    + (f" · 전체 약 {total_ms}ms" if source_latency_ms is not None else "")
+                )
+                if not future.done():
+                    future.set_result(True)
+            except Exception as exc:
+                self.last_haptic_latency = f"{key}: 전송 실패 · {exc}"
+                if not future.done():
+                    future.set_exception(exc)
+            finally:
+                self.haptic_queue.task_done()
+
+    async def haptic(
+        self,
+        key: str,
+        pattern: PulsePattern,
+        cooldown: float = 1.0,
+        *,
+        source_latency_ms: int | None = None,
+    ) -> bool:
         now = time.monotonic()
         if now - self.last_haptic.get(key, -1e9) < cooldown:
             return False
-        await self.wrists.send(pattern)
         self.last_haptic[key] = now
-        return True
+        self.haptic_sequence += 1
+        future = asyncio.get_running_loop().create_future()
+        await self.haptic_queue.put(
+            (
+                self._haptic_priority(key),
+                self.haptic_sequence,
+                key,
+                pattern,
+                now,
+                source_latency_ms,
+                future,
+            )
+        )
+        return await future
 
     async def event_haptic(self, event: WaybandEvent, cooldown: float | None = None) -> bool:
         pattern = pattern_for(event)
@@ -365,6 +432,8 @@ class DemoRuntime:
             f"\n[시연 단계] {stage}"
             f"\n[센서 연결] {status_line}"
             f"\n[팔찌 연결] {self.wrists.status_text()}"
+            f"\n[팔찌 상세] {self.wrists.detail_text()}"
+            f"\n[진동 지연] {self.last_haptic_latency}"
             f"\n[센서 복구] {self.sensor_recovery_status}"
             f"\n[웹 대시보드] {self.web_status}"
         )

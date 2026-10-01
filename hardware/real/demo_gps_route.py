@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-from urllib.error import URLError
 
 from control import CommandKind
 from map_api import MapApi
@@ -21,27 +20,42 @@ from demo_common import (
 
 async def demo(runtime: DemoRuntime) -> None:
     api = MapApi(runtime.args.server_url)
-    while True:
-        await runtime.sample("GPS 경로 안내 대기")
-        try:
-            commands = await asyncio.to_thread(api.poll)
-        except (URLError, TimeoutError, OSError):
-            commands = []
-        for command in commands:
-            if command.kind is CommandKind.TURN and command.angle_degrees is not None:
-                if command.angle_degrees < 0:
-                    await runtime.haptic("GPS_LEFT", LEFT_TURN_PATTERN, 2.0)
-                    await runtime.sample("GPS 좌회전 진동")
-                else:
-                    await runtime.haptic("GPS_RIGHT", RIGHT_TURN_PATTERN, 2.0)
-                    await runtime.sample("GPS 우회전 진동")
-            elif command.kind is CommandKind.CROSSWALK:
-                await runtime.haptic("GPS_CROSSWALK", CROSSWALK_PATTERN, 2.0)
-                await runtime.sample("GPS 횡단보도 진동")
-            elif command.kind is CommandKind.ARRIVED:
-                await runtime.haptic("GPS_ARRIVAL", ARRIVAL_PATTERN, 5.0)
-                await runtime.sample("목적지 도착 진동")
-        await asyncio.sleep(0.25)
+    queue: asyncio.Queue = asyncio.Queue()
+    receiver = asyncio.create_task(api.pump(queue))
+    try:
+        while True:
+            await runtime.sample("GPS 경로 안내 대기")
+            while not queue.empty():
+                command = queue.get_nowait()
+                if command.kind is CommandKind.TURN and command.angle_degrees is not None:
+                    if command.angle_degrees < 0:
+                        await runtime.haptic(
+                            "GPS_LEFT", LEFT_TURN_PATTERN, 2.0,
+                            source_latency_ms=command.latency_ms,
+                        )
+                        await runtime.sample("GPS 좌회전 진동")
+                    else:
+                        await runtime.haptic(
+                            "GPS_RIGHT", RIGHT_TURN_PATTERN, 2.0,
+                            source_latency_ms=command.latency_ms,
+                        )
+                        await runtime.sample("GPS 우회전 진동")
+                elif command.kind is CommandKind.CROSSWALK:
+                    await runtime.haptic(
+                        "GPS_CROSSWALK", CROSSWALK_PATTERN, 2.0,
+                        source_latency_ms=command.latency_ms,
+                    )
+                    await runtime.sample("GPS 횡단보도 진동")
+                elif command.kind is CommandKind.ARRIVED:
+                    await runtime.haptic(
+                        "GPS_ARRIVAL", ARRIVAL_PATTERN, 5.0,
+                        source_latency_ms=command.latency_ms,
+                    )
+                    await runtime.sample("목적지 도착 진동")
+            await asyncio.sleep(0.05)
+    finally:
+        receiver.cancel()
+        await asyncio.gather(receiver, return_exceptions=True)
 
 
 def main() -> None:
