@@ -12,6 +12,7 @@ SERVICE_UUID = "7d8f1000-8e7f-4d3b-a3a6-6f44a16c1000"
 COMMAND_UUID = "7d8f1001-8e7f-4d3b-a3a6-6f44a16c1000"
 STATUS_UUID = "7d8f1002-8e7f-4d3b-a3a6-6f44a16c1000"
 DEVICE_NAMES = {Side.LEFT: "WAYBAND_LEFT", Side.RIGHT: "WAYBAND_RIGHT"}
+DEFAULT_RIGHT_ADDRESS = "1C:DB:D4:ED:1D:42"
 
 
 @dataclass(slots=True)
@@ -24,7 +25,11 @@ class WristStatus:
 @dataclass(slots=True)
 class BleWristController:
     simulate: bool = False
-    scan_timeout: float = 8.0
+    scan_timeout: float = 4.0
+    connect_retries: int = 3
+    right_address: str | None = field(
+        default_factory=lambda: os.environ.get("WAYBAND_RIGHT_ADDRESS", DEFAULT_RIGHT_ADDRESS)
+    )
     left_serial_port: str | None = None
     left_serial_baud: int = 115200
     clients: dict[Side, object] = field(default_factory=dict)
@@ -49,6 +54,7 @@ class BleWristController:
         import serial
 
         port = self._find_left_serial_port()
+        self.statuses[Side.LEFT].last_response = "CONNECTING"
         self._left_serial = await asyncio.to_thread(
             serial.Serial, port, self.left_serial_baud, timeout=0.2, write_timeout=1
         )
@@ -57,7 +63,15 @@ class BleWristController:
 
     async def connect(self, side: Side) -> None:
         if side is Side.BOTH:
-            await asyncio.gather(self.connect(Side.LEFT), self.connect(Side.RIGHT), return_exceptions=True)
+            sides = (Side.LEFT, Side.RIGHT)
+            results = await asyncio.gather(
+                *(self.connect(item) for item in sides),
+                return_exceptions=True,
+            )
+            for item, result in zip(sides, results):
+                if isinstance(result, BaseException):
+                    self.statuses[item].connected = False
+                    self.statuses[item].last_response = f"ERROR:{result}"
             return
         if self.simulate:
             self.statuses[side] = WristStatus(True, 88, "SIM_CONNECTED")
@@ -74,14 +88,38 @@ class BleWristController:
                 return
             from bleak import BleakClient, BleakScanner
 
-            device = await BleakScanner.find_device_by_name(DEVICE_NAMES[side], timeout=self.scan_timeout)
-            if device is None:
-                raise RuntimeError(f"{DEVICE_NAMES[side]} 검색 실패")
-            client = BleakClient(device, timeout=15)
-            await client.connect()
-            self.clients[side] = client
-            self.statuses[side].connected = True
-            self.statuses[side].last_response = "CONNECTED"
+            last_error: BaseException | None = None
+            self.statuses[side].last_response = "CONNECTING"
+            for attempt in range(1, self.connect_retries + 1):
+                try:
+                    if self.right_address:
+                        device = await BleakScanner.find_device_by_address(
+                            self.right_address,
+                            timeout=self.scan_timeout,
+                        )
+                    else:
+                        device = await BleakScanner.find_device_by_name(
+                            DEVICE_NAMES[side],
+                            timeout=self.scan_timeout,
+                        )
+                    if device is None:
+                        target = self.right_address or DEVICE_NAMES[side]
+                        raise RuntimeError(f"{target} 검색 실패")
+                    client = BleakClient(device, timeout=8)
+                    await client.connect()
+                    self.clients[side] = client
+                    self.statuses[side].connected = True
+                    self.statuses[side].last_response = "CONNECTED"
+                    return
+                except Exception as exc:
+                    last_error = exc
+                    self.clients.pop(side, None)
+                    self.statuses[side].last_response = (
+                        f"RETRY:{attempt}/{self.connect_retries}:{exc}"
+                    )
+                    if attempt < self.connect_retries:
+                        await asyncio.sleep(0.5)
+            raise RuntimeError(f"{DEVICE_NAMES[side]} 연결 실패: {last_error}")
 
     async def _ensure(self, side: Side) -> None:
         if side is Side.LEFT and not self.simulate:
@@ -112,17 +150,25 @@ class BleWristController:
         if side is Side.LEFT:
             await self._start_left_pattern(pattern)
             return
-        client = self.clients[side]
-        await client.write_gatt_char(COMMAND_UUID, payload, response=True)
-        self.statuses[side].last_response = "WRITE_ACK"
-        try:
-            raw = await client.read_gatt_char(STATUS_UUID)
-            response = bytes(raw).decode("ascii", errors="replace")
-            self.statuses[side].last_response = response
-            if response.startswith("BAT:"):
-                self.statuses[side].battery_percent = int(response.split(":", 1)[1])
-        except Exception:
-            pass
+        for attempt in range(2):
+            try:
+                client = self.clients[side]
+                await client.write_gatt_char(COMMAND_UUID, payload, response=True)
+                self.statuses[side].connected = True
+                self.statuses[side].last_response = "WRITE_ACK"
+                return
+            except Exception:
+                client = self.clients.pop(side, None)
+                self.statuses[side].connected = False
+                if client is not None and getattr(client, "is_connected", False):
+                    try:
+                        await client.disconnect()
+                    except Exception:
+                        pass
+                if attempt == 0:
+                    await self._ensure(side)
+                    continue
+                raise
 
     async def _write_left(self, command: str) -> None:
         if self._left_serial is None:
@@ -199,6 +245,8 @@ class BleWristController:
             status = self.statuses[side]
             if status.connected:
                 value = "connected"
+            elif status.last_response == "CONNECTING" or status.last_response.startswith("RETRY:"):
+                value = "connecting"
             elif status.last_response.startswith("ERROR:"):
                 value = "missing"
             else:

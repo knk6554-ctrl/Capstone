@@ -149,6 +149,7 @@ class DemoRuntime:
         self.imu: Mpu6050Yaw | None = None
         self.state = SharedState({"error": "센서 초기화 중입니다."})
         self.last_push = 0.0
+        self.web_push_task: asyncio.Task | None = None
         self.web_status = "아직 전송 안 함"
         self.last_haptic: dict[str, float] = {}
         self.running = True
@@ -172,6 +173,15 @@ class DemoRuntime:
             self.imu = Mpu6050Yaw(self.bus, self.cfg.imu_address, self.cfg.imu_invert)
             print("IMU 보정 중입니다. 장치를 움직이지 마세요.")
             await asyncio.to_thread(self.imu.initialize)
+        print("팔찌 선연결 중입니다.")
+        await self.wrists.connect(Side.BOTH)
+
+    async def _push_web(self, payload: dict[str, Any]) -> None:
+        try:
+            await asyncio.to_thread(_push, self.args.server_url, payload)
+            self.web_status = f"정상 전송 ({time.strftime('%H:%M:%S')})"
+        except (URLError, TimeoutError, OSError) as exc:
+            self.web_status = f"전송 실패: {exc}"
 
     async def _calibrate_down(self) -> None:
         frame_values: list[int] = []
@@ -236,6 +246,9 @@ class DemoRuntime:
 
     async def close(self) -> None:
         self.running = False
+        if self.web_push_task is not None and not self.web_push_task.done():
+            self.web_push_task.cancel()
+            await asyncio.gather(self.web_push_task, return_exceptions=True)
         try:
             await self.wrists.stop()
         finally:
@@ -337,21 +350,21 @@ class DemoRuntime:
         }
 
         now = time.monotonic()
-        if not self.args.no_web_dashboard and now - self.last_push >= 0.5:
+        if (
+            not self.args.no_web_dashboard
+            and now - self.last_push >= 0.5
+            and (self.web_push_task is None or self.web_push_task.done())
+        ):
             self.last_push = now
-            try:
-                await asyncio.to_thread(_push, self.args.server_url, payload)
-                self.web_status = f"정상 전송 ({time.strftime('%H:%M:%S')})"
-            except (URLError, TimeoutError, OSError) as exc:
-                self.web_status = f"전송 실패: {exc}"
-            payload["web_dashboard_status"] = self.web_status
+            self.web_push_task = asyncio.create_task(self._push_web(dict(payload)))
+        payload["web_dashboard_status"] = self.web_status
 
         self.state.set(payload)
         status_line = " / ".join(f"{key}:{value}" for key, value in statuses.items())
         extra = (
             f"\n[시연 단계] {stage}"
             f"\n[센서 연결] {status_line}"
-            f"\n[BLE 연결] {self.wrists.status_text()}"
+            f"\n[팔찌 연결] {self.wrists.status_text()}"
             f"\n[센서 복구] {self.sensor_recovery_status}"
             f"\n[웹 대시보드] {self.web_status}"
         )

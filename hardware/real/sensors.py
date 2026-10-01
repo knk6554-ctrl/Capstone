@@ -18,7 +18,9 @@ class TofRig:
             self.cfg.tca_address,
             0 if channel is None else 1 << channel,
         )
-        time.sleep(0.1 if channel is None else 0.2)
+        # TCA9548A channel switching is effectively immediate. A short guard
+        # delay is enough and avoids adding ~0.6 s to every three-sensor sample.
+        time.sleep(0.005)
 
     def start(self) -> None:
         from smbus2 import SMBus

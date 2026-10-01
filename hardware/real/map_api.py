@@ -61,7 +61,7 @@ class MapApi:
 
     def _request(self, after_sequence: int) -> dict:
         query = urlencode({"after_sequence": after_sequence, "limit": 20})
-        with urlopen(f"{self.server_url}/api/haptics?{query}", timeout=2) as response:
+        with urlopen(f"{self.server_url}/api/haptics?{query}", timeout=1) as response:
             return json.loads(response.read().decode("utf-8"))
 
     def poll(self) -> list[NavigationCommand]:
