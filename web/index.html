@@ -12,7 +12,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2/dist/tabler-icons.min.css" />
-    <link rel="stylesheet" href="/static/styles.css?v=guard-missing-decisions1" />
+    <link rel="stylesheet" href="/static/styles.css?v=presentation-demo1" />
   </head>
   <body>
     <a class="skip-link" href="#main-content">본문으로 바로가기</a>
@@ -252,6 +252,40 @@
             </span>
           </label>
 
+          <section class="presentation-demo" aria-labelledby="presentation-demo-title">
+            <div class="presentation-demo__heading">
+              <div>
+                <span class="presentation-demo__badge">REC</span>
+                <strong id="presentation-demo-title">발표 자동 시연</strong>
+              </div>
+              <span id="presentation-progress-text">경로 생성 후 시작</span>
+            </div>
+            <p>GPS 마커가 경로를 따라 움직이며 회전·횡단보도·도착 진동을 자동 재생합니다.</p>
+            <div class="presentation-demo__controls">
+              <button id="presentation-start" type="button" class="primary" disabled>
+                <i class="ti ti-player-play" aria-hidden="true"></i> 자동 시연 시작
+              </button>
+              <button id="presentation-pause" type="button" class="secondary" disabled>
+                <i class="ti ti-player-pause" aria-hidden="true"></i> 일시정지
+              </button>
+              <button id="presentation-reset" type="button" class="secondary" disabled>
+                <i class="ti ti-refresh" aria-hidden="true"></i> 초기화
+              </button>
+              <label class="presentation-demo__speed">
+                속도
+                <select id="presentation-speed">
+                  <option value="0.75">0.75×</option>
+                  <option value="1" selected>1×</option>
+                  <option value="1.5">1.5×</option>
+                  <option value="2">2×</option>
+                </select>
+              </label>
+            </div>
+            <div class="presentation-demo__track" aria-hidden="true">
+              <span id="presentation-progress-bar"></span>
+            </div>
+          </section>
+
           <div id="next-guidance" class="guidance-card" aria-live="assertive">
             <i class="ti ti-route" aria-hidden="true"></i>
             <span id="next-guidance-text">경로를 먼저 생성해 주세요.</span>
@@ -344,6 +378,15 @@
       </div>
     </main>
 
-    <script src="/static/app.js?v=guard-missing-decisions1" defer></script>
+    <div id="presentation-haptic-toast" class="presentation-haptic-toast" role="status" aria-live="assertive" hidden>
+      <span class="presentation-haptic-toast__pulse" aria-hidden="true"></span>
+      <div>
+        <small>WAYBAND 진동 알림</small>
+        <strong id="presentation-haptic-title">양쪽 팔찌 진동</strong>
+        <span id="presentation-haptic-message"></span>
+      </div>
+    </div>
+
+    <script src="/static/app.js?v=presentation-demo1" defer></script>
   </body>
 </html>

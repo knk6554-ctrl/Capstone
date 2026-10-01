@@ -115,6 +115,86 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* 발표 녹화용 자동 GPS·햅틱 시뮬레이터 */
+.presentation-demo {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid color-mix(in srgb, var(--start-green) 38%, var(--line));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--start-green) 7%, var(--paper));
+  box-shadow: var(--shadow-sm);
+}
+
+.presentation-demo__heading,
+.presentation-demo__heading > div,
+.presentation-demo__controls {
+  display: flex;
+  align-items: center;
+}
+
+.presentation-demo__heading {
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.presentation-demo__heading > div { gap: 0.45rem; }
+.presentation-demo__heading > span { color: var(--ink-soft); font: 600 0.72rem var(--font-mono); }
+.presentation-demo__badge {
+  padding: 0.15rem 0.38rem;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--danger);
+  font: 700 0.64rem var(--font-mono);
+  letter-spacing: 0.08em;
+}
+
+.presentation-demo__controls {
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.8rem;
+}
+
+.presentation-demo__controls button { width: auto; min-height: 36px; padding: 0.5rem 0.7rem; }
+.presentation-demo__speed { margin-left: auto; display: flex; align-items: center; gap: 0.35rem; font-size: 0.75rem; }
+.presentation-demo__speed select { width: auto; min-width: 70px; padding: 0.4rem; }
+.presentation-demo__track { height: 5px; margin-top: 0.8rem; overflow: hidden; border-radius: 999px; background: var(--line); }
+.presentation-demo__track span { display: block; width: 0; height: 100%; background: var(--start-green); transition: width 0.25s ease; }
+
+.presentation-haptic-toast {
+  position: fixed;
+  z-index: 80;
+  top: 1.25rem;
+  left: calc(var(--panel-width) + 1.25rem);
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  width: min(390px, calc(100vw - var(--panel-width) - 2.5rem));
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  border-radius: 16px;
+  color: #fff;
+  background: rgba(15, 76, 70, 0.94);
+  box-shadow: 0 12px 35px rgba(15, 48, 45, 0.28);
+  backdrop-filter: blur(12px);
+  animation: presentation-toast-in 0.28s ease-out;
+}
+
+.presentation-haptic-toast[hidden] { display: none; }
+.presentation-haptic-toast__pulse { width: 38px; height: 38px; flex: 0 0 auto; border: 3px solid #fff; border-radius: 50%; animation: presentation-vibrate 0.18s linear infinite alternate; }
+.presentation-haptic-toast div { display: grid; gap: 0.08rem; }
+.presentation-haptic-toast small { opacity: 0.72; font: 600 0.68rem var(--font-mono); }
+.presentation-haptic-toast strong { color: #fff; font-size: 1rem; }
+.presentation-haptic-toast div > span { color: rgba(255,255,255,.86); font-size: 0.78rem; }
+
+@keyframes presentation-toast-in { from { opacity: 0; transform: translateY(-12px); } }
+@keyframes presentation-vibrate { from { transform: translateX(-2px) rotate(-4deg); } to { transform: translateX(2px) rotate(4deg); } }
+
+@media (max-width: 880px) {
+  .presentation-haptic-toast { left: 1rem; right: 1rem; top: 1rem; width: auto; }
+  .presentation-demo__speed { margin-left: 0; }
+}
+
 h1, h2, h3, h4 {
   color: var(--ink);
   font-weight: 700;

@@ -21,6 +21,15 @@ const state = {
   lastKnownStepIndex: null,
   // 시연 모드: 실제 GPS 대신 안내 목록 클릭으로 각 지점 도달을 흉내낸다.
   demoMode: false,
+  presentation: {
+    running: false,
+    paused: false,
+    points: [],
+    index: 0,
+    timer: null,
+    toastTimer: null,
+    sensorActive: false,
+  },
 };
 
 // 위험 구간(계단·횡단보도)을 지도에 상시 표시할 색 — 성격이 다른 위험이라 색을 구분한다.
@@ -72,6 +81,15 @@ const elements = {
   routeViewToggle: document.querySelector("#route-view-toggle"),
   demoModeCheckbox: document.querySelector("#demo-mode-checkbox"),
   resetProgressButton: document.querySelector("#reset-progress"),
+  presentationStart: document.querySelector("#presentation-start"),
+  presentationPause: document.querySelector("#presentation-pause"),
+  presentationReset: document.querySelector("#presentation-reset"),
+  presentationSpeed: document.querySelector("#presentation-speed"),
+  presentationProgressText: document.querySelector("#presentation-progress-text"),
+  presentationProgressBar: document.querySelector("#presentation-progress-bar"),
+  presentationHapticToast: document.querySelector("#presentation-haptic-toast"),
+  presentationHapticTitle: document.querySelector("#presentation-haptic-title"),
+  presentationHapticMessage: document.querySelector("#presentation-haptic-message"),
 };
 
 function switchTab(tabName) {
@@ -195,7 +213,10 @@ function bindEvents() {
   elements.useCurrentLocation.addEventListener("click", useCurrentLocation);
   elements.createRoute.addEventListener("click", createRoute);
   elements.startNavigation.addEventListener("click", startNavigation);
-  elements.stopNavigation.addEventListener("click", stopNavigation);
+  elements.stopNavigation.addEventListener("click", () => {
+    stopPresentationDemo();
+    stopNavigation();
+  });
 
   elements.emergencyAck.addEventListener("click", acknowledgeEmergency);
   bindHelpHints();
@@ -206,6 +227,9 @@ function bindEvents() {
     setDemoMode(event.target.checked);
   });
   elements.resetProgressButton.addEventListener("click", resetNavigationProgress);
+  elements.presentationStart.addEventListener("click", startPresentationDemo);
+  elements.presentationPause.addEventListener("click", togglePresentationPause);
+  elements.presentationReset.addEventListener("click", resetPresentationDemo);
   pollEmergency();
   setInterval(pollEmergency, 4000);
 
@@ -530,6 +554,9 @@ const ROUTE_MODE_LABELS = {
 };
 
 function resetRouteExtras() {
+  stopPresentationDemo();
+  elements.presentationStart.disabled = true;
+  elements.presentationReset.disabled = true;
   for (const el of [
     elements.routeSafetyWarning,
     elements.routeHazards,
@@ -630,6 +657,8 @@ async function createRoute() {
     renderRoute(route);
     renderHazards(route);
     renderComparison(route);
+    elements.presentationStart.disabled = false;
+    elements.presentationReset.disabled = false;
     elements.routeMessage.textContent = `${modeLabel}를 만들었습니다.`;
     if (state.demoMode) {
       // 시연 모드가 이미 켜져 있었다면(경로 없을 때 미리 켜둔 경우) 새 경로에 맞춰 안내 UI를 켠다.
@@ -1012,6 +1041,7 @@ function stopNavigation() {
 // 시연 모드: 실제로 걷지 않고도 안내 목록을 눌러 각 지점 도달을 흉내낸다.
 // 실제 GPS와 동시에 돌면 위치가 뒤섞이니 서로 배타적으로 둔다.
 function setDemoMode(enabled) {
+  if (!enabled && state.presentation.running) stopPresentationDemo();
   state.demoMode = enabled;
   elements.directions.classList.toggle("is-demo-mode", enabled);
 
@@ -1073,6 +1103,168 @@ async function resetNavigationProgress() {
   }
 }
 
+// 발표 녹화용 자동 시연: 서버의 실제 위치 API를 일정 간격으로 호출하므로
+// 지도 마커, 안내 문구, 진동 명령 로그가 실제 GPS 안내와 같은 흐름으로 움직인다.
+function buildPresentationPoints(route) {
+  const path = route?.path || [];
+  if (!path.length) return (route?.steps || []).map((step) => step.location).filter(Boolean);
+
+  const wanted = new Set([0, path.length - 1]);
+  const stride = Math.max(1, Math.ceil(path.length / 80));
+  for (let index = 0; index < path.length; index += stride) wanted.add(index);
+
+  for (const step of route.steps || []) {
+    if (!step.location) continue;
+    let nearest = 0;
+    let nearestDistance = Infinity;
+    path.forEach((point, index) => {
+      const dy = point.latitude - step.location.latitude;
+      const dx = point.longitude - step.location.longitude;
+      const distance = dx * dx + dy * dy;
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearest = index;
+      }
+    });
+    wanted.add(nearest);
+  }
+  return [...wanted].sort((a, b) => a - b).map((index) => path[index]);
+}
+
+function updatePresentationProgress() {
+  const total = state.presentation.points.length;
+  const percent = total ? Math.min(100, Math.round(((state.presentation.index + 1) / total) * 100)) : 0;
+  elements.presentationProgressText.textContent = `${percent}%`;
+  elements.presentationProgressBar.style.width = `${percent}%`;
+}
+
+function stopPresentationDemo({ keepProgress = false } = {}) {
+  clearTimeout(state.presentation.timer);
+  state.presentation.timer = null;
+  state.presentation.running = false;
+  state.presentation.paused = false;
+  state.presentation.sensorActive = false;
+  elements.presentationPause.disabled = true;
+  elements.presentationPause.textContent = "일시정지";
+  elements.presentationStart.textContent = "자동 시연 시작";
+  if (!keepProgress) {
+    clearTimeout(state.presentation.toastTimer);
+    elements.presentationHapticToast.hidden = true;
+    state.presentation.points = [];
+    state.presentation.index = 0;
+    elements.presentationProgressText.textContent = "0%";
+    elements.presentationProgressBar.style.width = "0%";
+  }
+}
+
+async function startPresentationDemo() {
+  if (!state.route) return;
+  stopPresentationDemo();
+  elements.demoModeCheckbox.checked = true;
+  setDemoMode(true);
+  await resetNavigationProgress();
+
+  state.presentation.points = buildPresentationPoints(state.route);
+  if (!state.presentation.points.length) {
+    setStatus("시연할 경로 좌표가 없습니다", true);
+    return;
+  }
+  state.presentation.running = true;
+  state.presentation.sensorActive = true;
+  state.presentation.index = 0;
+  elements.presentationStart.textContent = "처음부터 다시";
+  elements.presentationPause.disabled = false;
+  setStatus("발표 자동 시연 중 · GPS와 진동 알림을 재생합니다");
+  runPresentationTick();
+}
+
+function togglePresentationPause() {
+  if (!state.presentation.running) return;
+  state.presentation.paused = !state.presentation.paused;
+  clearTimeout(state.presentation.timer);
+  elements.presentationPause.textContent = state.presentation.paused ? "계속 재생" : "일시정지";
+  setStatus(state.presentation.paused ? "발표 시연 일시정지" : "발표 자동 시연 중");
+  if (!state.presentation.paused) runPresentationTick();
+}
+
+async function resetPresentationDemo() {
+  stopPresentationDemo();
+  await resetNavigationProgress();
+  if (state.route?.path?.[0]) updateUserMarker({ ...state.route.path[0], accuracy_meters: 3 });
+  renderSensorDashboard(null);
+  setStatus("발표 시연을 처음 위치로 되돌렸습니다");
+}
+
+async function runPresentationTick() {
+  if (!state.presentation.running || state.presentation.paused) return;
+  const point = state.presentation.points[state.presentation.index];
+  const result = await updateLocation({
+    coords: { latitude: point.latitude, longitude: point.longitude, accuracy: 3 },
+    timestamp: Date.now(),
+  });
+  if (!state.presentation.running) return;
+  updatePresentationProgress();
+  renderPresentationSensorFrame(state.presentation.index, result?.commands || []);
+
+  if (result?.completed || state.presentation.index >= state.presentation.points.length - 1) {
+    stopPresentationDemo({ keepProgress: true });
+    elements.presentationProgressText.textContent = "100%";
+    elements.presentationProgressBar.style.width = "100%";
+    setStatus("발표 시연 완료 · 목적지에 도착했습니다");
+    return;
+  }
+  state.presentation.index += 1;
+  const speed = Number(elements.presentationSpeed.value) || 1;
+  state.presentation.timer = setTimeout(runPresentationTick, 420 / speed);
+}
+
+function showPresentationHaptic(command) {
+  const targetLabels = {
+    LEFT_WRIST: "왼쪽 팔찌",
+    RIGHT_WRIST: "오른쪽 팔찌",
+    BOTH_WRISTS: "양쪽 팔찌",
+  };
+  const target = targetLabels[command.target] || "진동 장치";
+  elements.presentationHapticTitle.textContent = `📳 ${target} 진동 알림`;
+  elements.presentationHapticMessage.textContent = command.message || command.pattern || "진동 안내";
+  elements.presentationHapticToast.hidden = false;
+  clearTimeout(state.presentation.toastTimer);
+  state.presentation.toastTimer = setTimeout(() => {
+    elements.presentationHapticToast.hidden = true;
+  }, 1800);
+}
+
+function renderPresentationSensorFrame(frame, commands) {
+  const phase = frame / 5;
+  const obstacle = frame % 27 >= 18 && frame % 27 <= 22;
+  const makeGrid = (base) => Array.from({ length: 8 }, (_, row) =>
+    Array.from({ length: 8 }, (_, col) => Math.round(base + 55 * Math.sin(phase + row * 0.4 + col * 0.3))),
+  );
+  const front = makeGrid(obstacle ? 520 : 1850);
+  const down = makeGrid(780);
+  const command = commands.at(-1);
+  const wrist = command ? `${command.target} · ${command.pattern}` : "대기";
+  const angle = Math.round(Math.sin(phase) * 22);
+  renderSensorDashboard({
+    receivedAt: Date.now() / 1000,
+    stats: {
+      leftSideMm: Math.round(900 + Math.sin(phase) * 170),
+      rightSideMm: Math.round(1050 + Math.cos(phase) * 190),
+      rotationDeg: angle,
+      gyroZOffsetDegPerSec: 0.2,
+      gyroZFinalDegPerSec: Number((Math.cos(phase) * 7).toFixed(1)),
+    },
+    imu: { direction: angle < -3 ? "LEFT" : angle > 3 ? "RIGHT" : "NONE", angleDeg: angle },
+    tof: { front, down },
+    decisions: [
+      { label: "장애물", value: obstacle ? "전방 장애물 감지" : "장애물 없음" },
+      { label: "계단/낙차", value: "계단 없음" },
+      { label: "회피 결정", value: obstacle ? "안전 방향 안내" : "경로 유지" },
+      { label: "팔찌 진동", value: wrist },
+    ],
+  });
+}
+
 function renderGpsDebug(position, result) {
   const c = position.coords;
   elements.gpsCoord.textContent = `${c.latitude.toFixed(6)}, ${c.longitude.toFixed(6)}`;
@@ -1114,7 +1306,7 @@ async function updateLocation(position) {
     updateEtaBar(result);
     if (result.completed) {
       setGuidance("목적지에 도착했습니다.", true);
-      stopNavigation();
+      if (!state.presentation.running) stopNavigation();
     } else {
       if (typeof result.currentStepIndex === "number") {
         applyAutoStepFocus(result.currentStepIndex);
@@ -1133,8 +1325,10 @@ async function updateLocation(position) {
       );
     }
     appendHapticCommands(result.commands);
+    return result;
   } catch (error) {
     setGuidance(error.message);
+    return null;
   }
 }
 
@@ -1189,6 +1383,7 @@ function appendHapticCommands(commands) {
     item.append(code, document.createElement("br"), command.message);
     elements.hapticLog.prepend(item);
   });
+  if (state.presentation.running) showPresentationHaptic(commands.at(-1));
 }
 
 // ---------------------------------------------------------------------------
@@ -1279,6 +1474,7 @@ function renderSensorDashboard(data) {
 }
 
 async function pollSensorDashboard() {
+  if (state.presentation.sensorActive) return;
   try {
     renderSensorDashboard(await fetchSensorDashboardData());
   } catch (error) {
