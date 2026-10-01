@@ -29,6 +29,7 @@ const state = {
     timer: null,
     toastTimer: null,
     sensorActive: false,
+    stairAlertShown: false,
   },
 };
 
@@ -1144,6 +1145,7 @@ function stopPresentationDemo({ keepProgress = false } = {}) {
   state.presentation.running = false;
   state.presentation.paused = false;
   state.presentation.sensorActive = false;
+  state.presentation.stairAlertShown = false;
   elements.presentationPause.disabled = true;
   elements.presentationPause.textContent = "일시정지";
   elements.presentationStart.textContent = "자동 시연 시작";
@@ -1237,14 +1239,39 @@ function showPresentationHaptic(command) {
 function renderPresentationSensorFrame(frame, commands) {
   const phase = frame / 5;
   const obstacle = frame % 27 >= 18 && frame % 27 <= 22;
+  const progress = frame / Math.max(1, state.presentation.points.length - 1);
+  // 발표 시연 중간에 하향 ToF가 바닥의 급격한 거리 증가(낙차)를 보는 장면을 재생한다.
+  const downstairs = progress >= 0.62 && progress <= 0.76;
   const makeGrid = (base) => Array.from({ length: 8 }, (_, row) =>
     Array.from({ length: 8 }, (_, col) => Math.round(base + 55 * Math.sin(phase + row * 0.4 + col * 0.3))),
   );
   const front = makeGrid(obstacle ? 520 : 1850);
   const down = makeGrid(780);
+  if (downstairs) {
+    // 히트맵 아래쪽 절반을 낙차처럼 먼 거리로 바꿔 하방 감지를 눈에 띄게 표현한다.
+    for (let row = 4; row < 8; row += 1) {
+      for (let col = 0; col < 8; col += 1) {
+        down[row][col] = Math.round(2250 + 90 * Math.sin(phase + col * 0.35));
+      }
+    }
+  }
   const command = commands.at(-1);
-  const wrist = command ? `${command.target} · ${command.pattern}` : "대기";
+  const wrist = command
+    ? `${command.target} · ${command.pattern}`
+    : downstairs
+      ? "하방 계단 경고 진동 (시뮬레이션)"
+      : "대기";
   const angle = Math.round(Math.sin(phase) * 22);
+  if (downstairs && !state.presentation.stairAlertShown) {
+    state.presentation.stairAlertShown = true;
+    elements.presentationHapticTitle.textContent = "⚠️ 하방 계단 감지";
+    elements.presentationHapticMessage.textContent = "하향 ToF 낙차 감지 · 팔찌 경고 진동 시뮬레이션";
+    elements.presentationHapticToast.hidden = false;
+    clearTimeout(state.presentation.toastTimer);
+    state.presentation.toastTimer = setTimeout(() => {
+      elements.presentationHapticToast.hidden = true;
+    }, 2600);
+  }
   renderSensorDashboard({
     receivedAt: Date.now() / 1000,
     stats: {
@@ -1258,8 +1285,8 @@ function renderPresentationSensorFrame(frame, commands) {
     tof: { front, down },
     decisions: [
       { label: "장애물", value: obstacle ? "전방 장애물 감지" : "장애물 없음" },
-      { label: "계단/낙차", value: "계단 없음" },
-      { label: "회피 결정", value: obstacle ? "안전 방향 안내" : "경로 유지" },
+      { label: "계단/낙차", value: downstairs ? "하방 계단 감지" : "계단 없음" },
+      { label: "회피 결정", value: downstairs ? "하방 계단 경고" : obstacle ? "안전 방향 안내" : "경로 유지" },
       { label: "팔찌 진동", value: wrist },
     ],
   });
