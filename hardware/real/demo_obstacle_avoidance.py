@@ -9,7 +9,7 @@ main.py에는 아직 통합하지 않았다 — 이 데모 로직이 검증되�
 실행:
     python3 demo_obstacle_avoidance.py --simulate-sensors --simulate-ble
         하드웨어 없이 시나리오만 반복 확인(3초 직진 후 장애물 등장, 좌측 막힘, 우측 열림).
-    python3 demo_obstacle_avoidance.py --wrist-output ble
+    python3 demo_obstacle_avoidance.py --wrist-output serial
         실제 ToF 센서 + BLE 팔찌.
     python3 demo_obstacle_avoidance.py --wrist-output gpio --simulate-ble
         실제 ToF 센서 + 라즈베리파이 GPIO 모터(팔찌 대신).
@@ -31,7 +31,7 @@ if str(HARDWARE_ROOT) not in sys.path:
 
 from wayband_hw.core.events import Side
 from wayband_hw.core.patterns import PulsePattern
-from wayband_hw.drivers.ble_wrist import BleWristController
+from wayband_hw.drivers.serial_wrist import SerialWristController
 from wayband_hw.drivers.gpio_wrist import GpioWristController
 
 from config import Config
@@ -154,13 +154,13 @@ class DemoScenarioRig:
 
 
 def _build_wrists(args: argparse.Namespace, cfg: Config):
-    """--wrist-output에 따라 BleWristController 또는 GpioWristController를 만든다."""
+    """--wrist-output에 따라 SerialWristController 또는 GpioWristController를 만든다."""
 
     if args.wrist_output == "gpio":
         return GpioWristController(
             cfg.left_wrist_pin, cfg.right_wrist_pin, simulate=args.simulate_ble
         )
-    return BleWristController(simulate=args.simulate_ble)
+    return SerialWristController(simulate=args.simulate_ble)
 
 
 async def run_demo(args: argparse.Namespace) -> None:
@@ -217,12 +217,15 @@ if __name__ == "__main__":
         action="store_true",
         help="실제 ToF 없이 정해둔 시나리오(3초 직진 후 전방 장애물·좌측 막힘·우측 열림) 재생",
     )
-    parser.add_argument("--simulate-ble", action="store_true", help="실제 팔찌/모터 없이 진동 전송 시험")
+    parser.add_argument(
+        "--simulate-wrists", "--simulate-ble", dest="simulate_ble",
+        action="store_true", help="실제 팔찌/모터 없이 진동 전송 시험"
+    )
     parser.add_argument(
         "--wrist-output",
-        choices=("ble", "gpio"),
-        default="ble",
-        help="손목 진동 출력 방식 (기본 ble)",
+        choices=("serial", "gpio"),
+        default="serial",
+        help="손목 진동 출력 방식 (기본 serial)",
     )
     args = parser.parse_args()
     try:

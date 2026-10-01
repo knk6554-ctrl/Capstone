@@ -21,7 +21,7 @@ if str(HARDWARE_ROOT) not in sys.path:
 
 from wayband_hw.core.events import EventKind, Side, WaybandEvent
 from wayband_hw.core.patterns import PulsePattern, pattern_for
-from wayband_hw.drivers.ble_wrist import BleWristController
+from wayband_hw.drivers.serial_wrist import SerialWristController
 from wayband_hw.drivers.imu import Mpu6050Yaw
 
 from config import Config
@@ -34,7 +34,9 @@ def add_common_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--baseline-down-mm", type=int, default=700)
     parser.add_argument("--invert-imu", action="store_true")
     parser.add_argument("--simulate-sensors", action="store_true")
-    parser.add_argument("--simulate-ble", action="store_true")
+    parser.add_argument(
+        "--simulate-wrists", "--simulate-ble", dest="simulate_ble", action="store_true"
+    )
     parser.add_argument("--no-web-dashboard", action="store_true")
     parser.add_argument("--interval", type=float, default=0.1)
     parser.add_argument("--calibration-frames", type=int, default=8)
@@ -144,7 +146,7 @@ class DemoRuntime:
             enable_front=False,
         )
         self.rig: Any = DemoRig(self.cfg) if args.simulate_sensors else TofRig(self.cfg)
-        self.wrists = BleWristController(simulate=args.simulate_ble)
+        self.wrists = SerialWristController(simulate=args.simulate_ble)
         self.bus = None
         self.imu: Mpu6050Yaw | None = None
         self.state = SharedState({"error": "센서 초기화 중입니다."})

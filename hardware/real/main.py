@@ -18,7 +18,7 @@ if str(HARDWARE_ROOT) not in sys.path:
 from wayband_hw.core.detection import EnvironmentDetector
 from wayband_hw.core.events import EventKind, Side
 from wayband_hw.core.patterns import PulsePattern, pattern_for
-from wayband_hw.drivers.ble_wrist import BleWristController
+from wayband_hw.drivers.serial_wrist import SerialWristController
 from wayband_hw.drivers.gpio_wrist import GpioWristController
 from wayband_hw.drivers.imu import Mpu6050Yaw
 
@@ -41,17 +41,17 @@ from sensor_dashboard import SharedState, render_terminal
 
 
 def build_wrists(args: argparse.Namespace, cfg: Config | None = None):
-    """--wrist-output에 따라 BleWristController 또는 GpioWristController를 만든다.
+    """--wrist-output에 따라 SerialWristController 또는 GpioWristController를 만든다.
 
     둘 다 같은 인터페이스(send/stop/close)라 호출부는 어느 쪽인지 신경 쓸 필요 없다.
     """
 
-    if getattr(args, "wrist_output", "ble") == "gpio":
+    if getattr(args, "wrist_output", "serial") == "gpio":
         pins = cfg or Config()
         return GpioWristController(
             pins.left_wrist_pin, pins.right_wrist_pin, simulate=args.simulate_ble
         )
-    return BleWristController(simulate=args.simulate_ble)
+    return SerialWristController(simulate=args.simulate_ble)
 
 
 def _dashboard_loop(state: SharedState, stop: threading.Event) -> None:
@@ -514,9 +514,10 @@ if __name__ == "__main__":
     parser.add_argument("--invert-imu", action="store_true")
     parser.add_argument("--simulate-sensors", action="store_true")
     parser.add_argument(
-        "--simulate-ble",
+        "--simulate-wrists", "--simulate-ble",
+        dest="simulate_ble",
         action="store_true",
-        help="실제 팔찌/모터 없이 진동 전송 시험(BLE·GPIO 출력 공통)",
+        help="실제 팔찌/모터 없이 진동 전송 시험(시리얼·GPIO 출력 공통)",
     )
     parser.add_argument("--simulate-imu", action="store_true")
     parser.add_argument("--map-only", action="store_true", help="센서 없이 지도 클릭 햅틱만 실행")
@@ -526,9 +527,9 @@ if __name__ == "__main__":
     parser.add_argument("--terminal", action="store_true", help="ToF 8x8, IMU, 판정과 현재 동작을 터미널에 표시")
     parser.add_argument(
         "--wrist-output",
-        choices=("ble", "gpio"),
-        default="ble",
-        help="손목 진동 출력 방식 (기본 ble — 팔찌 아직 없으면 gpio로 라즈베리파이 핀에 직결)",
+        choices=("serial", "gpio"),
+        default="serial",
+        help="손목 진동 출력 방식 (기본 serial — 또는 gpio로 라즈베리파이 핀에 직결)",
     )
     parser.add_argument(
         "--state-path",

@@ -1,6 +1,6 @@
-"""GPIO(라즈베리파이 직결 모터)로 손목 진동을 구동하는 BleWristController 대체품.
+"""GPIO(라즈베리파이 직결 모터)로 손목 진동을 구동하는 SerialWristController 대체품.
 
-BleWristController와 같은 인터페이스(send/stop/close)를 구현해서, main.py는
+SerialWristController와 같은 인터페이스(send/stop/close)를 구현해서, main.py는
 `--wrist-output ble|gpio` 하나로 둘을 바꿔 끼울 수 있다. gpiozero는 실제로 GPIO를
 쓸 때만 임포트한다 — GPIO가 없는 개발 PC에서도 이 모듈을 임포트·테스트할 수 있어야
 한다(belt/motors.py와 같은 이유).
@@ -64,7 +64,7 @@ class GpioWristController:
     intensity는 PulsePattern이 0-255 정수, PWM 듀티는 0.0-1.0이라 255로 정규화한다.
 
     send()는 재생이 끝날 때까지 기다리지 않고 백그라운드 태스크로 돌린다 —
-    BleWristController.send()가 ESP32에 명령만 전달하고 바로 반환하는 것과 같은
+    SerialWristController.send()가 ESP32에 명령만 전달하고 바로 반환하는 것과 같은
     타이밍이어야 한다. RotationController.rotate()는 "긴 펄스 하나를 보내놓고
     그동안 IMU로 실제 회전량을 재다가 목표 각도에 도달하면 stop()으로 끊는" 방식으로
     동작하는데, send()가 펄스가 끝날 때까지 블로킹하면 IMU 측정 루프가 펄스 재생이

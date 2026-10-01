@@ -31,7 +31,7 @@ if str(HARDWARE_ROOT) not in sys.path:
 from wayband_hw.core.detection import EnvironmentDetector
 from wayband_hw.core.events import EventKind, WaybandEvent
 from wayband_hw.core.patterns import pattern_for
-from wayband_hw.drivers.ble_wrist import BleWristController
+from wayband_hw.drivers.serial_wrist import SerialWristController
 from wayband_hw.drivers.imu import Mpu6050Yaw
 
 from config import Config
@@ -256,7 +256,7 @@ def sensor_loop(args: argparse.Namespace, state: SharedState, stop: threading.Ev
     rig: Any = DemoRig(cfg) if args.simulate else TofRig(cfg)
     bus = None
     imu = None
-    wrists = BleWristController(simulate=args.simulate_ble)
+    wrists = SerialWristController(simulate=args.simulate_ble)
     ble_loop = asyncio.new_event_loop()
     last_haptic: dict[EventKind, float] = {}
 
@@ -452,7 +452,10 @@ def main() -> None:
     parser.add_argument("--invert-imu", action="store_true")
     parser.add_argument("--enable-front", action="store_true", help="교체한 전방 VL53L5CX(CH1)를 다시 사용")
     parser.add_argument("--terminal", action="store_true", help="웹 없이 현재 터미널에 표시")
-    parser.add_argument("--simulate-ble", action="store_true", help="실제 팔찌 없이 진동 전송 시험")
+    parser.add_argument(
+        "--simulate-wrists", "--simulate-ble", dest="simulate_ble",
+        action="store_true", help="실제 팔찌 없이 진동 전송 시험"
+    )
     parser.add_argument(
         "--server-url",
         default="http://127.0.0.1:8000",

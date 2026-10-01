@@ -4,6 +4,7 @@ import asyncio
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import AsyncMock, patch
 
 HARDWARE = Path(__file__).resolve().parents[1] / "hardware"
 REAL = HARDWARE / "real"
@@ -13,7 +14,7 @@ for path in (str(HARDWARE), str(REAL)):
 
 from demo_common import fill_missing_from_history, virtual_front_blocked, virtual_front_from_down
 from demo_obstacle_auto import choose_avoidance
-from wayband_hw.drivers.ble_wrist import BleWristController
+from wayband_hw.drivers.serial_wrist import SerialWristController
 
 
 class VirtualFrontTests(unittest.TestCase):
@@ -31,10 +32,28 @@ class VirtualFrontTests(unittest.TestCase):
         self.assertFalse(virtual_front_blocked([None] * 32 + [1500] * 32, 1000))
 
 
-class BleCleanupTests(unittest.IsolatedAsyncioTestCase):
+class SerialWristTests(unittest.IsolatedAsyncioTestCase):
     async def test_stop_with_no_connected_wrists_does_not_scan(self):
-        controller = BleWristController(simulate=False)
+        controller = SerialWristController(simulate=False)
         await asyncio.wait_for(controller.stop(), timeout=0.2)
+
+    async def test_simulation_connects_both_serial_wrists(self):
+        controller = SerialWristController(simulate=True)
+        from wayband_hw.core.events import Side
+
+        await controller.connect(Side.BOTH)
+        self.assertEqual(controller.status_text(), "L:connected / R:connected")
+
+    async def test_each_side_uses_its_own_serial_command_prefix(self):
+        from wayband_hw.core.events import Side
+        from wayband_hw.core.patterns import PulsePattern
+
+        controller = SerialWristController(simulate=False)
+        with patch.object(SerialWristController, "_write", new=AsyncMock()) as write:
+            await controller._play(Side.LEFT, PulsePattern(Side.LEFT, (1,)))
+            await controller._play(Side.RIGHT, PulsePattern(Side.RIGHT, (1,)))
+        self.assertEqual(write.await_args_list[0].args, (Side.LEFT, "L1"))
+        self.assertEqual(write.await_args_list[1].args, (Side.RIGHT, "R1"))
 
 
 class MissingValueCorrectionTests(unittest.TestCase):
