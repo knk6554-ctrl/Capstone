@@ -1,4 +1,4 @@
-"""Demo 3: virtual-front/right obstacle, left 30 deg, forward, right 30 deg."""
+"""Demo 3: front obstacle -> check left, fall back to right, keep the new heading."""
 
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ async def rotate(runtime: DemoRuntime, target: float, label: str) -> bool:
             payload = await runtime.sample(
                 label,
                 obstacle="장애물 감지",
-                avoidance="좌측으로 피함" if target < 0 else "원래 방향 복귀",
+                avoidance="좌측으로 피함" if target < 0 else "우측으로 피함",
                 avoidance_angle=target,
             )
             angle = payload["angle_deg"]
@@ -55,11 +55,7 @@ async def demo(runtime: DemoRuntime) -> None:
     while True:
         payload = await runtime.sample("장애물 배치 대기")
         front_blocked = virtual_front_blocked(payload["front"], runtime.args.virtual_front_mm)
-        right_blocked = (
-            payload["right_mm"] is not None
-            and payload["right_mm"] <= runtime.args.right_blocked_mm
-        )
-        if not (front_blocked and right_blocked):
+        if not front_blocked:
             blocked_frames = 0
             await asyncio.sleep(runtime.args.interval)
             continue
@@ -74,59 +70,85 @@ async def demo(runtime: DemoRuntime) -> None:
             continue
         blocked_frames = 0
 
+        # 1. 전방 장애물 감지 -> 양쪽 팔찌 진동
         await runtime.haptic("OBSTACLE", PulsePattern(Side.BOTH, (220, 220), (180,), 230), 2.0)
         payload = await runtime.sample(
-            "전방 하단·우측 장애물 확인 · 좌측 확인 중",
+            "전방 장애물 확인 · 좌측 확인 중",
             obstacle="장애물 감지",
             avoidance="좌측 확인 중",
         )
 
-        # 우측이 막혀 있다고 왼쪽으로 무조건 돌지 않는다 — 왼쪽도 막혀 있으면 정지한다.
+        # 2. 왼쪽부터 확인한다 — 막혀 있으면 왼쪽 진동으로 알리고 중앙으로 복귀한 뒤 오른쪽을 확인한다.
         left_blocked = (
             payload["left_mm"] is not None and payload["left_mm"] <= runtime.args.left_blocked_mm
         )
+
         if left_blocked:
-            await runtime.haptic("NO_PATH", PulsePattern(Side.BOTH, (150, 150), (100,), 255), 1.5)
+            await runtime.haptic("LEFT_BLOCKED", PulsePattern(Side.LEFT, (200, 200), (150,), 240), 1.5)
             await runtime.wait_with_sensors(
-                2.0,
-                "좌우 모두 막힘 · 정지",
+                1.0,
+                "좌측 막힘 · 중앙 복귀",
                 obstacle="장애물 감지",
-                avoidance="통로 없음 · 정지",
-                avoidance_angle=None,
+                avoidance="중앙 복귀",
             )
-            continue
+            payload = await runtime.sample(
+                "우측 확인 중",
+                obstacle="장애물 감지",
+                avoidance="우측 확인 중",
+            )
+            right_blocked = (
+                payload["right_mm"] is not None
+                and payload["right_mm"] <= runtime.args.right_blocked_mm
+            )
+            if right_blocked:
+                await runtime.haptic(
+                    "STOP_NO_PATH", PulsePattern(Side.BOTH, (150, 150), (100,), 255), 1.5
+                )
+                await runtime.wait_with_sensors(
+                    2.0,
+                    "좌우 모두 막힘 · 정지",
+                    obstacle="장애물 감지",
+                    avoidance="통로 없음 · 정지",
+                    avoidance_angle=None,
+                )
+                continue
+            target = 30.0
+            label = "오른쪽으로 30° 회전"
+            await runtime.sample(
+                "우측 열림 확인",
+                obstacle="장애물 감지",
+                avoidance="우측 30° 회피 결정",
+                avoidance_angle=target,
+            )
+        else:
+            target = -30.0
+            label = "왼쪽으로 30° 회전"
+            await runtime.sample(
+                "좌측 열림 확인",
+                obstacle="장애물 감지",
+                avoidance="좌측 30° 회피 결정",
+                avoidance_angle=target,
+            )
 
-        await runtime.sample(
-            "좌측 열림 확인",
-            obstacle="장애물 감지",
-            avoidance="좌측 30° 회피 결정",
-            avoidance_angle=-30.0,
-        )
-
-        left_ok = await rotate(runtime, -30.0, "왼쪽으로 30° 회전")
-        if not left_ok:
-            await runtime.sample("왼쪽 회전 시간 초과 · 정지", obstacle="장애물 감지", avoidance="정지")
+        # 3. 열린 방향으로 30도 회전한다. 회전 중 장애물이 없으면(진동이 더 울리지 않으면) 그대로 진행.
+        turned_ok = await rotate(runtime, target, label)
+        if not turned_ok:
+            await runtime.sample("회전 시간 초과 · 정지", obstacle="장애물 감지", avoidance="정지")
             await runtime.wait_with_sensors(2.0, "안전 정지", obstacle="장애물 감지", avoidance="정지")
             continue
 
+        # 4. 회피 후 원래 방향으로 되돌아가지 않고, 새로 돌아본 방향을 그대로 유지한 채 직진한다.
         await runtime.wait_with_sensors(
             runtime.args.forward_seconds,
-            "회피 경로 직진",
+            "회피 경로 직진 · 새 방향 유지",
             obstacle="장애물 통과 중",
-            avoidance="직진",
+            avoidance="새 방향으로 직진",
         )
 
-        right_ok = await rotate(runtime, 30.0, "오른쪽으로 30° 회전 · 원래 방향 복귀")
-        if not right_ok:
-            await runtime.sample("복귀 회전 시간 초과 · 정지", obstacle="장애물 통과", avoidance="정지")
-            await runtime.wait_with_sensors(2.0, "안전 정지", avoidance="정지")
-            continue
-
-        await runtime.wait_with_sensors(2.0, "원래 방향 직진", avoidance="직진 가능")
         # Do not immediately retrigger while the demonstration boxes remain.
         clear_frames = 0
         while True:
-            payload = await runtime.sample("시연 완료 · 장애물 제거 대기")
+            payload = await runtime.sample("시연 완료 · 장애물 제거 대기", avoidance="새 방향으로 직진")
             clear = not virtual_front_blocked(payload["front"], runtime.args.virtual_front_mm)
             clear_frames = clear_frames + 1 if clear else 0
             if clear_frames >= runtime.args.obstacle_clear_frames:
