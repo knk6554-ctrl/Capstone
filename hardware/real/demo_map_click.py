@@ -24,6 +24,7 @@ async def demo(runtime: DemoRuntime) -> None:
     receiver = asyncio.create_task(api.pump(queue))
     try:
         while True:
+            runtime.extra_status["명령 수신"] = api.connection_status
             await runtime.sample("지도 시연 포인트 클릭 대기")
             while not queue.empty():
                 command = queue.get_nowait()

@@ -60,6 +60,9 @@ class MapApi:
         # 프로그램이 재시작돼도 서버 버퍼(최대 500개)에 남은 예전 명령을 처음부터
         # 다시 재생하지 않도록, 마지막으로 처리한 순번을 파일에서 이어받는다.
         self.sequence, self.server_instance_id = _load_state(self.state_path)
+        # stream()이 바꾸는 현재 수신 방식 — demo 스크립트가 터미널에 계속
+        # 보여줄 수 있도록 공개 속성으로 둔다(지워지는 print() 대신).
+        self.connection_status = "연결 시도 전"
 
     def _request(self, after_sequence: int) -> dict:
         query = urlencode({"after_sequence": after_sequence, "limit": 20})
@@ -160,16 +163,19 @@ class MapApi:
             import websockets
         except ImportError:
             websockets = None
+            self.connection_status = "websockets 미설치 · HTTP 폴링 사용 (0.25초 간격)"
 
         while True:
             if websockets is not None:
                 try:
+                    self.connection_status = "WebSocket 연결 시도 중"
                     async with websockets.connect(
                         self._websocket_url(),
                         open_timeout=3,
                         ping_interval=15,
                         ping_timeout=10,
                     ) as socket:
+                        self.connection_status = "WebSocket 연결됨 (실시간 수신)"
                         async for raw in socket:
                             commands, restarted = self._consume(json.loads(raw))
                             if restarted:
@@ -180,13 +186,16 @@ class MapApi:
                 except asyncio.CancelledError:
                     raise
                 except Exception as exc:
+                    self.connection_status = f"WebSocket 실패 · HTTP 폴링 사용: {exc}"
                     print(f"WebSocket 명령 연결 실패 · HTTP 폴링 사용: {exc}")
             try:
                 commands = await asyncio.to_thread(self.poll)
+                if "HTTP 폴링 사용" not in self.connection_status:
+                    self.connection_status = "HTTP 폴링 사용 (0.25초 간격)"
                 if commands:
                     yield commands
-            except Exception:
-                pass
+            except Exception as exc:
+                self.connection_status = f"HTTP 폴링 실패: {exc}"
             await asyncio.sleep(0.25)
 
     async def pump(self, queue: asyncio.Queue[NavigationCommand]) -> None:

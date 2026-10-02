@@ -169,6 +169,10 @@ class DemoRuntime:
         self.sensor_failures = {"down": 0, "left": 0, "right": 0}
         self.last_sensor_retry = -1e9
         self.sensor_recovery_status = "재연결 대기 없음"
+        # 개별 데모 스크립트가 자유롭게 채우는 상태 줄. sample()이 매번 화면을
+        # 지우고 다시 그리기 때문에, 그 순간에만 찍는 print()는 바로 지워져서
+        # 눈에 보이지 않는다 — 여기 넣어두면 다음 sample()에도 계속 보인다.
+        self.extra_status: dict[str, str] = {}
 
     async def start(self) -> None:
         # Connection attempts continue in the background. Sensor startup and
@@ -456,6 +460,7 @@ class DemoRuntime:
             f"\n[진동 지연] {self.last_haptic_latency}"
             f"\n[센서 복구] {self.sensor_recovery_status}"
             f"\n[웹 대시보드] {self.web_status}"
+            + "".join(f"\n[{key}] {value}" for key, value in self.extra_status.items())
         )
         print("\033[2J\033[H" + render_terminal(payload) + extra, end="", flush=True)
         return payload
