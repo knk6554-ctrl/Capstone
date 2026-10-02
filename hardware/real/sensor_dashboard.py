@@ -306,8 +306,16 @@ def sensor_loop(args: argparse.Namespace, state: SharedState, stop: threading.Ev
             if args.simulate:
                 front, down, left, right, angle, rate, source = rig.snapshot()
             else:
-                front, down, left, right = rig.snapshot()
+                # imu.update()는 호출 간격이 0.1초를 넘으면 그 초과분을 그냥
+                # 버린다. ToF 스냅샷(특히 좌측 VL53L0X)이 느려지면 그 대기 중에
+                # 회전각이 실제보다 적게 누적되므로, ToF를 기다리는 동안에도
+                # IMU는 따로 빠르게 polling해서 각도 누락을 막는다.
+                deadline = time.monotonic() + args.interval
                 angle, rate = imu.update()
+                while time.monotonic() < deadline and not stop.is_set():
+                    time.sleep(0.01)
+                    angle, rate = imu.update()
+                front, down, left, right = rig.snapshot()
                 source = "실제 센서"
             payload = make_payload(cfg, detector, front, down, left, right, angle, rate, source)
             payload["haptic_status"] = send_safety_haptic(payload)
@@ -327,7 +335,10 @@ def sensor_loop(args: argparse.Namespace, state: SharedState, stop: threading.Ev
             payload["web_dashboard_status"] = web_dashboard_status
 
             state.set(payload)
-            stop.wait(args.interval)
+            # 실제 하드웨어 분기는 위 IMU polling 루프가 이미 args.interval만큼
+            # 기다렸으므로 여기서 또 기다리면 주기가 두 배가 된다.
+            if args.simulate:
+                stop.wait(args.interval)
     except Exception as exc:
         state.set({"error": str(exc), "timestamp": time.time()})
         print(f"센서 오류: {exc}")

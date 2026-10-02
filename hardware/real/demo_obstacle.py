@@ -28,23 +28,32 @@ async def rotate(runtime: DemoRuntime, target: float, label: str) -> bool:
         0.5,
     )
     started = time.monotonic()
+    last_display = 0.0
+    avoidance = "좌측으로 피함" if target < 0 else "우측으로 피함"
     try:
         while time.monotonic() - started < runtime.cfg.rotation_timeout_seconds:
-            payload = await runtime.sample(
-                label,
-                obstacle="장애물 감지",
-                avoidance="좌측으로 피함" if target < 0 else "우측으로 피함",
-                avoidance_angle=target,
-            )
-            angle = payload["angle_deg"]
             if runtime.args.simulate_sensors:
+                await runtime.sample(label, obstacle="장애물 감지", avoidance=avoidance, avoidance_angle=target)
                 if time.monotonic() - started >= 1.0:
                     return True
-            elif (target < 0 and angle <= target + runtime.cfg.rotation_tolerance_degrees) or (
+                await asyncio.sleep(runtime.args.interval)
+                continue
+
+            # Mpu6050Yaw.update()는 호출 간격이 0.1초를 넘으면 그 초과분을 그냥
+            # 버린다. runtime.sample()은 ToF 3개를 순서대로 읽는 느린 호출이라
+            # 매번 그걸 기다리고 나서 update()를 부르면 실제 회전각보다 적게
+            # 누적된다 — 각도 확인은 IMU만 직접, 빠르게 돌리고, 화면 표시용
+            # 전체 샘플링은 따로 느리게(0.2초마다) 한다.
+            angle, _rate = runtime.imu.update() if runtime.imu is not None else (0.0, 0.0)
+            now = time.monotonic()
+            if now - last_display >= 0.2:
+                last_display = now
+                await runtime.sample(label, obstacle="장애물 감지", avoidance=avoidance, avoidance_angle=target)
+            if (target < 0 and angle <= target + runtime.cfg.rotation_tolerance_degrees) or (
                 target > 0 and angle >= target - runtime.cfg.rotation_tolerance_degrees
             ):
                 return True
-            await asyncio.sleep(runtime.args.interval)
+            await asyncio.sleep(0.01)
         return False
     finally:
         await runtime.wrists.stop()
