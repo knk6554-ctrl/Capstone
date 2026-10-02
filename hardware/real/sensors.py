@@ -84,7 +84,10 @@ class TofRig:
                     address=0x29,
                     io_timeout_s=0.2,
                 )
-                left_sensor.measurement_timing_budget = 33000
+                # 33ms(기본값)은 피하기 판단용 거리에는 과한 정밀도라 느리게 느껴진다.
+                # VL53L0X 데이터시트상 최소 타이밍 버짓인 20ms로 낮춰 매 호출마다
+                # 걸리는 레인징 시간을 줄인다(정확도는 장애물 회피 용도엔 충분).
+                left_sensor.measurement_timing_budget = 20000
                 break
             except (OSError, RuntimeError, ValueError) as exc:
                 left_error = f"{exc}"

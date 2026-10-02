@@ -248,9 +248,27 @@ class DemoRuntime:
             replacement = TofRig(self.cfg)
             await asyncio.to_thread(replacement.start)
             self.rig = replacement
-            self.sensor_recovery_status = "센서 재연결 완료"
+            # start()가 예외 없이 끝났다고 데이터가 다시 들어온다는 보장은 없다 —
+            # 재초기화 직후 한 번 더 읽어서 실제로 복구됐는지 확인한다.
+            _unused_front, check_down, check_left, check_right = await asyncio.to_thread(
+                replacement.snapshot
+            )
+            still_failing = [
+                name
+                for name, ok in (
+                    ("down", bool(valid_values(check_down))),
+                    ("left", check_left is not None and 0 < check_left <= 4000),
+                    ("right", check_right is not None and 0 < check_right <= 4000),
+                )
+                if name in failed and not ok
+            ]
+            if still_failing:
+                self.sensor_recovery_status = f"재연결했지만 아직 데이터 없음: {', '.join(still_failing)}"
+            else:
+                self.sensor_recovery_status = "센서 재연결 완료"
             for name in failed:
-                self.sensor_failures[name] = 0
+                if name not in still_failing:
+                    self.sensor_failures[name] = 0
         except Exception as exc:
             self.sensor_recovery_status = f"센서 재연결 실패: {exc}"
 
