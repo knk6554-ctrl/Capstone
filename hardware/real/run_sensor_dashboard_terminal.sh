@@ -9,4 +9,4 @@ if [ -x "../.venv/bin/python3" ]; then
 else
     PYTHON="python3"
 fi
-exec "$PYTHON" sensor_dashboard.py --terminal --no-web-dashboard "$@"
+exec "$PYTHON" sensor_dashboard.py --terminal --server-url https://capstone-2jv4.onrender.com "$@"
